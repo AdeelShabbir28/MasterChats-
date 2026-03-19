@@ -1852,7 +1852,7 @@
 </head>
 <body>
     <!-- Splash Screen - God Level -->
-    <div class="splash-screen" id="splashScreen" style="display:none;">
+    <div class="splash-screen" id="splashScreen">
         <div class="splash-logo">💬</div>
         <div class="splash-title">MasterChats</div>
         <div class="splash-subtitle">Connect with friends and family</div>
@@ -3107,19 +3107,61 @@
         });
 
         // Auth Functions
+        // Toast notification function
+        function showToast(message, type = 'success') {
+            const existing = document.getElementById('toastMsg');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.id = 'toastMsg';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: ${type === 'error' ? '#ef4444' : '#25d366'};
+                color: white;
+                padding: 12px 24px;
+                border-radius: 24px;
+                font-size: 14px;
+                font-weight: 500;
+                z-index: 99999;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+                text-align: center;
+                max-width: 80%;
+                animation: slideUpToast 0.3s ease;
+            `;
+            toast.textContent = message;
+            
+            const style = document.createElement('style');
+            style.textContent = '@keyframes slideUpToast { from { opacity:0; transform:translateX(-50%) translateY(20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }';
+            document.head.appendChild(style);
+            
+            document.body.appendChild(toast);
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
+        }
+
         window.loginWithEmail = async function() {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value.trim();
             
             if (!email || !password) {
-                alert('Please enter email and password');
+                showToast('Please enter email and password', 'error');
                 return;
             }
+
+            // Show loading
+            const loginBtn = document.querySelector('.btn-primary');
+            const originalText = loginBtn.textContent;
+            loginBtn.textContent = 'Logging in...';
+            loginBtn.disabled = true;
 
             try {
                 const usersSnapshot = await get(ref(database, 'users'));
                 if (!usersSnapshot.exists()) {
-                    alert('Email not registered. Please sign up first.');
+                    showToast('No account found. Please sign up first!', 'error');
+                    loginBtn.textContent = originalText;
+                    loginBtn.disabled = false;
                     return;
                 }
 
@@ -3129,7 +3171,7 @@
 
                 usersSnapshot.forEach((child) => {
                     const user = child.val();
-                    if (user.email === email && user.password === password) {
+                    if (user.email && user.email.toLowerCase() === email.toLowerCase() && user.password === password) {
                         foundUserId = child.key;
                         foundUserData = user;
                         found = true;
@@ -3138,8 +3180,6 @@
 
                 if (found) {
                     localStorage.setItem('currentUserId', foundUserId);
-                    
-                    // Initialize all required objects
                     currentUser = { 
                         id: foundUserId, 
                         ...foundUserData,
@@ -3148,21 +3188,30 @@
                         receivedRequests: foundUserData.receivedRequests || {}
                     };
                     
-                    console.log('Login successful:', currentUser.name);
+                    // Update online status
+                    await update(ref(database, `users/${foundUserId}`), {
+                        online: true,
+                        lastSeen: Date.now()
+                    });
                     
                     showScreen('mainScreen');
                     updateProfileDisplay();
                     loadChats();
                     loadGroups();
+                    loadStatuses();
                     updateNotificationBadge();
                     listenForIncomingCalls();
                 } else {
-                    alert('Invalid email or password');
+                    showToast('Wrong email or password!', 'error');
+                    loginBtn.textContent = originalText;
+                    loginBtn.disabled = false;
                 }
                 
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Login failed: ' + error.message);
+                showToast('Login failed. Check internet connection!', 'error');
+                loginBtn.textContent = originalText;
+                loginBtn.disabled = false;
             }
         };
 
