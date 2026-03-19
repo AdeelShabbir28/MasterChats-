@@ -2767,52 +2767,53 @@
         let messagesListener = null; // To track active listener
 
         // ========== SPLASH SCREEN CONTROL ==========
+        function hideSplash() {
+            const splash = document.getElementById('splashScreen');
+            if (splash) {
+                splash.classList.add('hide');
+                setTimeout(() => { splash.style.display = 'none'; }, 400);
+            }
+        }
+
         window.addEventListener('load', async function() {
-            // Check if user is already logged in
             const savedUserId = localStorage.getItem('currentUserId');
             
             if (savedUserId) {
-                // Auto-login
-                try {
-                    const userSnap = await get(ref(database, `users/${savedUserId}`));
-                    if (userSnap.exists()) {
-                        currentUser = {
-                            id: savedUserId,
-                            ...userSnap.val()
-                        };
-                        
-                        // Hide splash and go to main screen
-                        setTimeout(() => {
-                            const splash = document.getElementById('splashScreen');
-                            if (splash) {
-                                splash.classList.add('hide');
-                                setTimeout(() => {
-                                    splash.style.display = 'none';
-                                    showScreen('mainScreen');
-                                    loadChats();
-                                    loadGroups();
-                                    loadStatuses();
-                                    updateProfileDisplay();
-                                }, 500);
-                            }
-                        }, 1500); // Shorter splash for auto-login
-                        return;
+                // Show splash briefly then load
+                setTimeout(async () => {
+                    hideSplash();
+                    try {
+                        const userSnap = await get(ref(database, `users/${savedUserId}`));
+                        if (userSnap.exists()) {
+                            currentUser = {
+                                id: savedUserId,
+                                ...userSnap.val(),
+                                friends: userSnap.val().friends || {},
+                                sentRequests: userSnap.val().sentRequests || {},
+                                receivedRequests: userSnap.val().receivedRequests || {}
+                            };
+                            showScreen('mainScreen');
+                            updateProfileDisplay();
+                            loadChats();
+                            loadGroups();
+                            loadStatuses();
+                            updateNotificationBadge();
+                            listenForIncomingCalls();
+                        } else {
+                            localStorage.removeItem('currentUserId');
+                            showScreen('loginScreen');
+                        }
+                    } catch (error) {
+                        console.error('Auto-login error:', error);
+                        showScreen('loginScreen');
                     }
-                } catch (error) {
-                    console.error('Auto-login error:', error);
-                }
+                }, 1500);
+            } else {
+                // No saved user - hide splash quickly
+                setTimeout(() => {
+                    hideSplash();
+                }, 1500);
             }
-            
-            // Normal splash screen (no auto-login)
-            setTimeout(() => {
-                const splash = document.getElementById('splashScreen');
-                if (splash) {
-                    splash.classList.add('hide');
-                    setTimeout(() => {
-                        splash.style.display = 'none';
-                    }, 500);
-                }
-            }, 2000);
         });
 
         // Update Time
