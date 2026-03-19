@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MasterChats - From ADEEL</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="MasterChats - Connect with friends and family. Chat, share status, make voice calls.">
+    <meta name="theme-color" content="#075e54">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MasterChats">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%23075e54' width='192' height='192' rx='40'/%3E%3Cpath fill='white' d='M96 40c-30.9 0-56 22.5-56 50.2 0 15.8 8.2 30 21.4 39.8l-5.6 20.8 22.4-11.7c5.4 1.5 11.2 2.3 17.4 2.3 30.9 0 56-22.5 56-50.2S126.9 40 96 40z'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%23075e54' width='192' height='192' rx='40'/%3E%3Cpath fill='white' d='M96 40c-30.9 0-56 22.5-56 50.2 0 15.8 8.2 30 21.4 39.8l-5.6 20.8 22.4-11.7c5.4 1.5 11.2 2.3 17.4 2.3 30.9 0 56-22.5 56-50.2S126.9 40 96 40z'/%3E%3C/svg%3E">
+    
     <style>
         * {
             margin: 0;
@@ -75,9 +91,30 @@
         }
 
         .back-btn {
-            font-size: 24px;
+            font-size: 0;
             cursor: pointer;
-            padding: 4px;
+            padding: 6px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+            position: relative;
+        }
+        .back-btn::after {
+            content: '';
+            display: block;
+            width: 20px;
+            height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .back-btn:active {
+            background: rgba(255,255,255,0.2);
         }
 
         .header h1 {
@@ -719,22 +756,36 @@
         }
 
         .send-btn {
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            background: #25d366;
+            background: linear-gradient(135deg, #25d366, #075e54);
             color: white;
             border: none;
-            font-size: 20px;
+            font-size: 0;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
+            box-shadow: 0 3px 10px rgba(37,211,102,0.4);
+            position: relative;
+        }
+
+        .send-btn::after {
+            content: '';
+            display: block;
+            width: 18px;
+            height: 18px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
         }
 
         .send-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.92);
+            box-shadow: 0 1px 5px rgba(37,211,102,0.3);
         }
 
         /* Settings */
@@ -877,49 +928,134 @@
         }
 
         /* Status */
+        /* ===== NEW STATUS CARD STYLE ===== */
         .status-list {
-            background: white;
+            background: #f0f2f5;
+            min-height: 100%;
         }
 
-        .my-status {
-            padding: 16px;
-            border-bottom: 8px solid #f0f2f5;
-        }
-
-        .status-item {
+        .status-cards-scroll {
             display: flex;
-            align-items: center;
-            padding: 12px 16px;
+            gap: 10px;
+            padding: 16px;
+            overflow-x: auto;
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .status-cards-scroll::-webkit-scrollbar { display: none; }
+
+        .status-card {
+            flex-shrink: 0;
+            width: 100px;
+            height: 160px;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
             cursor: pointer;
+            background: #222;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-
-        .status-ring {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            padding: 3px;
-            background: linear-gradient(135deg, #25d366, #128c7e);
-            margin-right: 12px;
-        }
-
-        .status-ring-inner {
+        .status-card-bg {
             width: 100%;
             height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0; left: 0;
+        }
+        .status-card-bg-color {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            background: linear-gradient(135deg, #075e54, #25d366);
+        }
+        .status-card-overlay {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+            padding: 8px 6px 8px;
+        }
+        .status-card-name {
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .status-card-avatar {
+            position: absolute;
+            top: 8px; left: 8px;
+            width: 36px; height: 36px;
             border-radius: 50%;
-            border: 3px solid white;
+            border: 2.5px solid #25d366;
             overflow: hidden;
             background: #dfe5e7;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            font-size: 18px;
+            z-index: 2;
         }
+        .status-card-avatar img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .status-card-add {
+            position: absolute;
+            bottom: 28px; left: 50%;
+            transform: translateX(-50%);
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: #25d366;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: white; font-weight: 300;
+            border: 2px solid white;
+            z-index: 2;
+        }
+        .status-card:active { transform: scale(0.96); }
 
-        .status-ring-inner img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        /* Recent updates list */
+        .status-recent-header {
+            padding: 12px 16px 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #075e54;
+            background: #f0f2f5;
+            letter-spacing: 0.5px;
         }
+        .status-recent-list {
+            background: white;
+        }
+        .status-recent-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+        }
+        .status-recent-item:active { background: #f5f5f5; }
+        .status-recent-avatar {
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            border: 2.5px solid #25d366;
+            overflow: hidden;
+            background: #dfe5e7;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .status-recent-avatar img { width:100%;height:100%;object-fit:cover; }
+
+        /* Old classes kept for compatibility */
+        .my-status { display: none; }
+        .status-item { display: flex; align-items: center; padding: 10px 16px; cursor: pointer; }
+        .status-ring { width:56px;height:56px;border-radius:50%;padding:3px;background:linear-gradient(135deg,#25d366,#128c7e);margin-right:12px; }
+        .status-ring-inner { width:100%;height:100%;border-radius:50%;border:3px solid white;overflow:hidden;background:#dfe5e7;display:flex;align-items:center;justify-content:center;font-size:28px; }
+        .status-ring-inner img { width:100%;height:100%;object-fit:cover; }
 
         /* Branding */
         .branding {
@@ -1290,7 +1426,7 @@
             color: white;
         }
 
-        .voice-send-btn {
+        .voice-send-btn::after { content:""; display:block; width:16px; height:16px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/%3E%3C/svg%3E"); background-size:contain; background-repeat:no-repeat; } .voice-send-btn {
             background: #25d366;
             color: white;
         }
@@ -1349,19 +1485,20 @@
         }
 
         /* Microphone Button */
-        .mic-btn {
-            width: 44px;
-            height: 44px;
+                .mic-btn {
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            background: #075e54;
+            background: rgba(255,255,255,0.15);
             color: white;
-            border: none;
+            border: 2px solid rgba(255,255,255,0.3);
+            font-size: 22px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            flex-shrink: 0;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .mic-btn:active {
@@ -1910,22 +2047,26 @@
 
                 <div id="statusTab" class="tab-content">
                     <div class="status-list">
-                        <div class="my-status">
-                            <div class="status-item" onclick="viewMyStatus()">
-                                <div class="status-ring">
-                                    <div class="status-ring-inner">
-                                        <span id="myStatusAvatar">👤</span>
-                                        <img id="myStatusPic" style="display:none;">
-                                    </div>
+                        <!-- Cards scroll row -->
+                        <div class="status-cards-scroll" id="statusCardsRow">
+                            <!-- My Status Card -->
+                            <div class="status-card" onclick="viewMyStatus()">
+                                <div class="status-card-bg-color"></div>
+                                <div class="status-card-avatar">
+                                    <span id="myStatusAvatar">👤</span>
+                                    <img id="myStatusPic" style="display:none;width:100%;height:100%;object-fit:cover;">
                                 </div>
-                                <div class="user-details">
-                                    <div class="user-name">My Status</div>
-                                    <div class="user-status">Tap to add status update</div>
+                                <div class="status-card-add">+</div>
+                                <div class="status-card-overlay">
+                                    <div class="status-card-name">My Status</div>
                                 </div>
                             </div>
+                            <!-- Friends status cards loaded here -->
+                            <div id="statusCardsList"></div>
                         </div>
-                        <div class="settings-header">RECENT UPDATES</div>
-                        <div id="statusList"></div>
+                        <!-- Recent updates list -->
+                        <div class="status-recent-header">RECENT UPDATES</div>
+                        <div class="status-recent-list" id="statusList"></div>
                     </div>
                 </div>
 
@@ -1947,7 +2088,7 @@
         <div class="screen" id="searchScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeSearch()">←</span>
+                    <span class="back-btn" onclick="closeSearch()"></span>
                     <h1>Search Users</h1>
                 </div>
             </div>
@@ -1967,7 +2108,7 @@
             <div class="chat-window">
                 <div class="chat-header-bar">
                     <div class="chat-header-left">
-                        <span class="back-btn" onclick="closeChat()">←</span>
+                        <span class="back-btn" onclick="closeChat()"></span>
                         <div class="chat-avatar">
                             <span id="chatHeaderAvatar">👤</span>
                             <img id="chatHeaderPic" style="display:none;">
@@ -1995,7 +2136,7 @@
                     <div class="voice-recorder-time" id="recordingTime">0:00</div>
                     <div class="voice-recorder-actions">
                         <button class="voice-recorder-btn voice-cancel-btn" onclick="cancelRecording()">✕</button>
-                        <button class="voice-recorder-btn voice-send-btn" onclick="sendVoiceMessage()">➤</button>
+                        <button class="voice-recorder-btn voice-send-btn" onclick="sendVoiceMessage()"></button>
                     </div>
                 </div>
 
@@ -2006,7 +2147,7 @@
                     </div>
                     <textarea class="chat-input" id="messageInput" placeholder="Type a message" rows="1" oninput="handleTyping()" onkeypress="handleEnter(event)"></textarea>
                     <button class="mic-btn" id="micBtn" onclick="startRecording()">🎤</button>
-                    <button class="send-btn" id="sendBtn" onclick="sendMessage()" style="display:none;">➤</button>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()" style="display:none;"></button>
                 </div>
             </div>
 
@@ -2075,7 +2216,7 @@
         <div class="screen" id="groupInfoScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeGroupInfo()">←</span>
+                    <span class="back-btn" onclick="closeGroupInfo()"></span>
                     <h1>Group Info</h1>
                 </div>
             </div>
@@ -2123,40 +2264,96 @@
         <input type="file" id="groupPhotoInput" accept="image/*" style="display:none;" onchange="handleGroupPhotoChange(event)">
 
         <!-- Voice Call Overlay -->
-        <div id="voiceCallOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#075e54,#128c7e);z-index:9999;flex-direction:column;align-items:center;justify-content:space-between;padding:60px 24px 50px;">
-            <div style="text-align:center;">
-                <div style="font-size:13px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">MasterChats</div>
-                <div id="callStatus" style="font-size:15px;color:rgba(255,255,255,0.85);margin-bottom:32px;">Calling...</div>
-                <div id="callAvatar" style="width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:52px;margin:0 auto 20px;border:4px solid rgba(255,255,255,0.3);overflow:hidden;"></div>
-                <div id="callContactName" style="font-size:26px;font-weight:600;color:white;margin-bottom:8px;">User</div>
-                <div id="callDuration" style="font-size:18px;color:rgba(255,255,255,0.8);font-variant-numeric:tabular-nums;min-height:26px;"></div>
+        <style>
+        @keyframes callPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255,255,255,0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        }
+        @keyframes callWave {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+        .call-avatar-wrap { position: relative; width: 120px; height: 120px; margin: 0 auto 20px; }
+        .call-avatar-pulse {
+            position: absolute; top: -15px; left: -15px; right: -15px; bottom: -15px;
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);
+            animation: callWave 2s infinite;
+        }
+        .call-avatar-pulse2 {
+            position: absolute; top: -8px; left: -8px; right: -8px; bottom: -8px;
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.2);
+            animation: callWave 2s infinite 0.5s;
+        }
+        .call-btn-wrap {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .call-btn-wrap:active { transform: scale(0.92); }
+        .call-btn {
+            width: 68px; height: 68px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; margin: 0 auto 8px;
+            transition: all 0.2s;
+        }
+        .call-btn-label { color: white; font-size: 13px; font-weight: 500; letter-spacing: 0.3px; }
+        .call-btn-small {
+            width: 60px; height: 60px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; margin: 0 auto 8px; transition: all 0.2s;
+        }
+        </style>
+        <div id="voiceCallOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(160deg,#064e45 0%,#0a7a6a 50%,#075e54 100%);z-index:9999;flex-direction:column;align-items:center;justify-content:space-between;padding:70px 24px 55px;">
+            
+            <!-- Top info -->
+            <div style="text-align:center;width:100%;">
+                <div style="font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;">MasterChats</div>
+                <div id="callStatus" style="font-size:14px;color:rgba(255,255,255,0.9);margin-bottom:40px;font-weight:500;">Calling...</div>
+                
+                <!-- Avatar with pulse animation -->
+                <div class="call-avatar-wrap">
+                    <div class="call-avatar-pulse"></div>
+                    <div class="call-avatar-pulse2"></div>
+                    <div id="callAvatar" style="width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:54px;border:3px solid rgba(255,255,255,0.4);overflow:hidden;position:relative;z-index:1;backdrop-filter:blur(4px);"></div>
+                </div>
+                
+                <div id="callContactName" style="font-size:28px;font-weight:700;color:white;margin-bottom:8px;letter-spacing:0.5px;">User</div>
+                <div id="callDuration" style="font-size:20px;color:rgba(255,255,255,0.85);font-variant-numeric:tabular-nums;min-height:28px;font-weight:300;letter-spacing:2px;"></div>
             </div>
+
             <!-- Incoming call actions -->
-            <div id="incomingCallActions" style="display:flex;gap:48px;align-items:center;justify-content:center;">
-                <div style="text-align:center;cursor:pointer;" onclick="rejectCall()">
-                    <div style="width:64px;height:64px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;box-shadow:0 4px 16px rgba(239,68,68,0.5);">📵</div>
-                    <div style="color:white;font-size:13px;">Decline</div>
+            <div id="incomingCallActions" style="display:flex;gap:60px;align-items:center;justify-content:center;width:100%;">
+                <div class="call-btn-wrap" onclick="rejectCall()">
+                    <div class="call-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 6px 20px rgba(239,68,68,0.5);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" transform="rotate(135 12 12)"/></svg>
+                    </div>
+                    <div class="call-btn-label">Decline</div>
                 </div>
-                <div style="text-align:center;cursor:pointer;" onclick="acceptCall()">
-                    <div style="width:64px;height:64px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;box-shadow:0 4px 16px rgba(37,211,102,0.5);">📞</div>
-                    <div style="color:white;font-size:13px;">Accept</div>
+                <div class="call-btn-wrap" onclick="acceptCall()">
+                    <div class="call-btn" style="background:linear-gradient(135deg,#25d366,#128c7e);box-shadow:0 6px 20px rgba(37,211,102,0.5);animation:callPulse 1.5s infinite;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+                    </div>
+                    <div class="call-btn-label">Accept</div>
                 </div>
             </div>
+
             <!-- Active call actions -->
-            <div id="activeCallActions" style="display:none;flex-direction:column;align-items:center;gap:24px;width:100%;">
-                <div style="display:flex;gap:32px;justify-content:center;">
-                    <div style="text-align:center;cursor:pointer;" onclick="toggleMute()">
-                        <div id="muteBtn" style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 6px;">🎤</div>
-                        <div style="color:rgba(255,255,255,0.8);font-size:12px;">Mute</div>
+            <div id="activeCallActions" style="display:none;flex-direction:column;align-items:center;gap:28px;width:100%;">
+                <div style="display:flex;gap:40px;justify-content:center;width:100%;">
+                    <div class="call-btn-wrap" onclick="toggleMute()">
+                        <div id="muteBtn" class="call-btn-small" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.25);backdrop-filter:blur(8px);">🎤</div>
+                        <div class="call-btn-label" style="font-size:12px;color:rgba(255,255,255,0.8);">Mute</div>
                     </div>
-                    <div style="text-align:center;cursor:pointer;" onclick="toggleSpeaker()">
-                        <div id="speakerBtn" style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 6px;">🔊</div>
-                        <div style="color:rgba(255,255,255,0.8);font-size:12px;">Speaker</div>
+                    <div class="call-btn-wrap" onclick="toggleSpeaker()">
+                        <div id="speakerBtn" class="call-btn-small" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.25);backdrop-filter:blur(8px);">🔊</div>
+                        <div class="call-btn-label" style="font-size:12px;color:rgba(255,255,255,0.8);">Speaker</div>
                     </div>
                 </div>
-                <div style="text-align:center;cursor:pointer;" onclick="endCall()">
-                    <div style="width:64px;height:64px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;box-shadow:0 4px 20px rgba(239,68,68,0.6);">📵</div>
-                    <div style="color:white;font-size:13px;">End Call</div>
+                <div class="call-btn-wrap" onclick="endCall()">
+                    <div class="call-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 6px 24px rgba(239,68,68,0.6);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" transform="rotate(135 12 12)"/></svg>
+                    </div>
+                    <div class="call-btn-label">End Call</div>
                 </div>
             </div>
         </div>
@@ -2166,7 +2363,7 @@
         <div class="screen" id="inviteMembersScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeInviteMembers()">←</span>
+                    <span class="back-btn" onclick="closeInviteMembers()"></span>
                     <h1>Invite Members</h1>
                 </div>
             </div>
@@ -2194,7 +2391,7 @@
         <div class="screen" id="settingsScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeSettings()">←</span>
+                    <span class="back-btn" onclick="closeSettings()"></span>
                     <h1>Settings</h1>
                 </div>
             </div>
@@ -2296,7 +2493,7 @@
         <div class="screen" id="privacyScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closePrivacySettings()">←</span>
+                    <span class="back-btn" onclick="closePrivacySettings()"></span>
                     <h1>Privacy Settings</h1>
                 </div>
             </div>
@@ -2396,7 +2593,7 @@
         <div class="screen" id="createGroupScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeCreateGroup()">←</span>
+                    <span class="back-btn" onclick="closeCreateGroup()"></span>
                     <h1>Create Group</h1>
                 </div>
             </div>
@@ -2429,7 +2626,7 @@
         <div class="screen" id="editProfileScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeEditProfile()">←</span>
+                    <span class="back-btn" onclick="closeEditProfile()"></span>
                     <h1>Edit Profile</h1>
                 </div>
             </div>
@@ -2475,7 +2672,7 @@
         <div class="screen" id="notificationsScreen">
             <div class="header">
                 <div class="header-left">
-                    <span class="back-btn" onclick="closeNotifications()">←</span>
+                    <span class="back-btn" onclick="closeNotifications()"></span>
                     <h1>Notifications</h1>
                 </div>
             </div>
@@ -2715,9 +2912,21 @@
         
         async function updateMyStatusDisplay() {
             try {
+                // Check if currentUser exists
+                if (!currentUser || !currentUser.id) {
+                    console.log('No current user for status update');
+                    return;
+                }
+                
                 const statusSnap = await get(ref(database, `statuses/${currentUser.id}`));
                 const myStatusRing = document.querySelector('.my-status .status-ring');
                 const myStatusText = document.querySelector('.my-status .user-status');
+                
+                // Check if DOM elements exist
+                if (!myStatusRing || !myStatusText) {
+                    console.log('Status display elements not found');
+                    return;
+                }
                 
                 if (!statusSnap.exists()) {
                     myStatusRing.classList.remove('has-status');
@@ -2730,15 +2939,15 @@
                 
                 statusSnap.forEach(child => {
                     const status = child.val();
-                    if (status.expiresAt > Date.now()) {
+                    if (status && status.expiresAt && status.expiresAt > Date.now()) {
                         hasActive = true;
-                        if (status.timestamp > latestTime) {
+                        if (status.timestamp && status.timestamp > latestTime) {
                             latestTime = status.timestamp;
                         }
                     }
                 });
                 
-                if (hasActive) {
+                if (hasActive && latestTime > 0) {
                     myStatusRing.classList.add('has-status');
                     myStatusText.textContent = formatTimeAgo(latestTime);
                 } else {
@@ -2747,6 +2956,7 @@
                 }
             } catch (error) {
                 console.error('Update my status display error:', error);
+                // Don't throw error, just log it
             }
         }
 
@@ -3986,9 +4196,17 @@
                 const remoteAudio = document.getElementById('remoteAudio');
                 if (remoteAudio) {
                     remoteAudio.srcObject = remoteStream;
+                    remoteAudio.muted = false;
+                    remoteAudio.volume = 1.0;
                     remoteAudio.play().catch(() => {});
                 }
             };
+            // Prevent echo - disable local audio monitoring
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = true;
+                });
+            }
 
             peerConnection.onicecandidate = async (event) => {
                 if (event.candidate) {
@@ -4089,6 +4307,14 @@
                 avatar.innerHTML = '👤';
             }
             overlay.style.display = 'flex';
+            // Caller gets active actions, receiver gets incoming actions
+            if (incoming) {
+                document.getElementById('incomingCallActions').style.display = 'flex';
+                document.getElementById('activeCallActions').style.display = 'none';
+            } else {
+                document.getElementById('incomingCallActions').style.display = 'none';
+                document.getElementById('activeCallActions').style.display = 'flex';
+            }
         }
 
         window.acceptCall = async function() {
@@ -4135,6 +4361,30 @@
         };
 
         function endCallCleanup() {
+            // Send call duration message in chat
+            if (callSeconds > 0 && currentChat && currentUser) {
+                const chatId = getChatId(currentUser.id, currentChat.id);
+                const mins = Math.floor(callSeconds / 60);
+                const secs = callSeconds % 60;
+                const durationText = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                const msgData = {
+                    senderId: currentUser.id,
+                    receiverId: currentChat.id,
+                    text: `📞 Voice call ended • ${durationText}`,
+                    timestamp: Date.now(),
+                    read: false,
+                    type: 'text'
+                };
+                const chatRef = push(ref(database, `messages/${chatId}`));
+                set(chatRef, msgData).catch(() => {});
+                const chatData = {
+                    lastMessage: `📞 Voice call • ${durationText}`,
+                    lastMessageTime: Date.now(),
+                    lastSender: currentUser.id
+                };
+                update(ref(database, `chats/${currentUser.id}/${currentChat.id}`), chatData).catch(() => {});
+                update(ref(database, `chats/${currentChat.id}/${currentUser.id}`), chatData).catch(() => {});
+            }
             stopCallTimer();
             if (peerConnection) {
                 peerConnection.close();
@@ -4170,12 +4420,20 @@
         };
 
         // Listen for incoming calls
+        let callsListenerActive = false;
         function listenForIncomingCalls() {
+            if (callsListenerActive) return;
+            callsListenerActive = true;
             onValue(ref(database, 'calls'), (snap) => {
                 if (!snap.exists() || !currentUser) return;
                 snap.forEach(child => {
                     const call = child.val();
-                    if (call.calleeId === currentUser.id && call.status === 'calling' && !currentCallId) {
+                    const overlay = document.getElementById('voiceCallOverlay');
+                    const overlayVisible = overlay && overlay.style.display !== 'none';
+                    if (call.calleeId === currentUser.id && 
+                        call.status === 'calling' && 
+                        !currentCallId && 
+                        !overlayVisible) {
                         currentCallId = child.key;
                         isIncomingCall = true;
                         showIncomingCall(child.key, call);
@@ -5162,9 +5420,11 @@
         async function loadStatuses() {
             try {
                 const statusListEl = document.getElementById('statusList');
+                const statusCardsEl = document.getElementById('statusCardsList');
                 if (!statusListEl) return;
                 
                 statusListEl.innerHTML = '';
+                if (statusCardsEl) statusCardsEl.innerHTML = '';
                 
                 // Get friends from chats
                 const chatsSnap = await get(ref(database, `chats/${currentUser.id}`));
@@ -5182,6 +5442,7 @@
                     
                     let hasActive = false;
                     let latestTime = 0;
+                    let latestStatusData = null;
                     
                     statusSnap.forEach(child => {
                         const status = child.val();
@@ -5189,6 +5450,7 @@
                             hasActive = true;
                             if (status.timestamp > latestTime) {
                                 latestTime = status.timestamp;
+                                latestStatusData = status;
                             }
                         }
                     });
@@ -5197,19 +5459,48 @@
                         hasAnyStatus = true;
                         const userSnap = await get(ref(database, `users/${friendId}`));
                         const user = userSnap.val();
-                        
                         const timeAgo = formatTimeAgo(latestTime);
                         
+                        // Get status image/bg
+                        const statusImg = latestStatusData && latestStatusData.image ? latestStatusData.image : '';
+                        const statusText = latestStatusData && latestStatusData.text ? latestStatusData.text : '';
+                        const bgColor = latestStatusData && latestStatusData.bgColor ? latestStatusData.bgColor : 'linear-gradient(135deg,#075e54,#25d366)';
+                        
+                        // Add card to scroll row
+                        if (statusCardsEl) {
+                            const card = document.createElement('div');
+                            card.className = 'status-card';
+                            card.onclick = () => viewStatus(friendId);
+                            card.innerHTML = `
+                                ${statusImg 
+                                    ? `<img class="status-card-bg" src="${statusImg}">` 
+                                    : `<div class="status-card-bg-color" style="background:${bgColor};"></div>`
+                                }
+                                <div class="status-card-avatar">
+                                    ${user.profilePic 
+                                        ? `<img src="${user.profilePic}">` 
+                                        : '<span style="font-size:16px;">👤</span>'
+                                    }
+                                </div>
+                                <div class="status-card-overlay">
+                                    <div class="status-card-name">${user.name.split(' ')[0]}</div>
+                                </div>
+                            `;
+                            statusCardsEl.appendChild(card);
+                        }
+                        
+                        // Add to recent list
                         statusListEl.innerHTML += `
-                            <div class="status-item" onclick="viewStatus('${friendId}')" style="cursor:pointer;">
-                                <div class="status-ring has-status">
-                                    <div class="status-ring-inner">
-                                        ${user.profilePic ? `<img src="${user.profilePic}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '<span style="font-size:32px;">👤</span>'}
-                                    </div>
+                            <div class="status-recent-item" onclick="viewStatus('${friendId}')">
+                                <div class="status-recent-avatar">
+                                    ${user.profilePic 
+                                        ? `<img src="${user.profilePic}">` 
+                                        : '<span>👤</span>'
+                                    }
                                 </div>
                                 <div class="user-details">
-                                    <div class="user-name">${user.name}</div>
-                                    <div class="user-status">${timeAgo}</div>
+                                    <div class="user-name" style="font-size:15px;font-weight:500;">${user.name}</div>
+                                    <div class="user-status" style="font-size:13px;color:#667781;">${timeAgo}</div>
                                 </div>
                             </div>
                         `;
@@ -5217,7 +5508,7 @@
                 }
                 
                 if (!hasAnyStatus) {
-                    statusListEl.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No statuses yet. Be the first to post!</p>';
+                    statusListEl.innerHTML = '<p style="text-align:center;color:#999;padding:40px 16px;">No statuses yet. Be the first to post!</p>';
                 }
             } catch (error) {
                 console.error('Load statuses error:', error);
@@ -5446,7 +5737,7 @@
             if (!message) return;
             
             try {
-                // Save reply
+                // Save reply in status
                 await push(ref(database, `statuses/${userId}/${statusId}/replies`), {
                     from: currentUser.id,
                     fromName: currentUser.name,
@@ -5455,8 +5746,40 @@
                     timestamp: Date.now()
                 });
                 
-                // Send notification
+                // Send as direct chat message to status owner
                 if (userId !== currentUser.id) {
+                    const chatId = getChatId(currentUser.id, userId);
+                    
+                    // Get status text for context
+                    const statusSnap = await get(ref(database, `statuses/${userId}/${statusId}`));
+                    const statusData = statusSnap.val();
+                    const statusText = statusData ? (statusData.text || '📸 Status') : '📸 Status';
+                    
+                    // Send reply as message
+                    const msgData = {
+                        senderId: currentUser.id,
+                        receiverId: userId,
+                        text: `↩️ Replied to status: "${statusText.substring(0,30)}..."
+
+${message}`,
+                        timestamp: Date.now(),
+                        read: false,
+                        type: 'text'
+                    };
+                    
+                    const msgRef = push(ref(database, `messages/${chatId}`));
+                    await set(msgRef, msgData);
+                    
+                    // Update chat list
+                    const chatData = {
+                        lastMessage: `↩️ ${message}`,
+                        lastMessageTime: Date.now(),
+                        lastSender: currentUser.id
+                    };
+                    await update(ref(database, `chats/${currentUser.id}/${userId}`), chatData);
+                    await update(ref(database, `chats/${userId}/${currentUser.id}`), chatData);
+                    
+                    // Send notification
                     await push(ref(database, `notifications/${userId}`), {
                         type: 'status_reply',
                         from: currentUser.id,
@@ -5468,11 +5791,21 @@
                 }
                 
                 input.value = '';
-                alert('Reply sent! ✓');
+                
+                // Close status viewer
+                const viewer = document.getElementById('statusViewer');
+                if (viewer) viewer.style.display = 'none';
+                
+                // Show success toast instead of alert
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#25d366;color:white;padding:12px 24px;border-radius:24px;font-size:14px;z-index:9999;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+                toast.textContent = '✓ Reply sent!';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2500);
                 
             } catch (error) {
                 console.error('Send reply error:', error);
-                alert('Failed to send reply');
+                alert('Failed to send reply: ' + error.message);
             }
         };
         
@@ -6030,6 +6363,473 @@
         }
 
         // ============ END IMAGE FEATURES ============
+
+        // ============ VOICE CALL SYSTEM WITH RINGTONE ============
+        
+        let peerConnection = null;
+        let localStream = null;
+        let currentCallId = null;
+        let ringtoneAudio = null;
+        let ringtoneInterval = null;
+        
+        const rtcConfiguration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' }
+            ]
+        };
+        
+        // Create WhatsApp-style Ringtone
+        function createRingtone() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.3;
+                
+                return { audioContext, oscillator, gainNode };
+            } catch (error) {
+                console.error('Ringtone creation error:', error);
+                return null;
+            }
+        }
+        
+        // Play Ringtone (WhatsApp-style pulsing)
+        function playRingtone() {
+            try {
+                if (!ringtoneAudio) {
+                    ringtoneAudio = createRingtone();
+                    if (ringtoneAudio) {
+                        ringtoneAudio.oscillator.start();
+                        
+                        // Pulse effect every second
+                        ringtoneInterval = setInterval(() => {
+                            if (ringtoneAudio && ringtoneAudio.gainNode) {
+                                ringtoneAudio.gainNode.gain.setValueAtTime(0.3, ringtoneAudio.audioContext.currentTime);
+                                ringtoneAudio.gainNode.gain.exponentialRampToValueAtTime(0.01, ringtoneAudio.audioContext.currentTime + 0.5);
+                            }
+                        }, 1000);
+                    }
+                }
+            } catch (error) {
+                console.error('Play ringtone error:', error);
+            }
+        }
+        
+        // Stop Ringtone
+        function stopRingtone() {
+            try {
+                if (ringtoneInterval) {
+                    clearInterval(ringtoneInterval);
+                    ringtoneInterval = null;
+                }
+                if (ringtoneAudio) {
+                    ringtoneAudio.oscillator.stop();
+                    ringtoneAudio.audioContext.close();
+                    ringtoneAudio = null;
+                }
+            } catch (error) {
+                console.error('Stop ringtone error:', error);
+            }
+        }
+        
+        // Initiate Voice Call
+        window.initiateVoiceCall = async function() {
+            if (!currentChat || currentChat.isGroup) {
+                alert('Voice calls only work in individual chats!');
+                return;
+            }
+            
+            try {
+                // Request microphone permission
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true, 
+                    video: false 
+                });
+                
+                // Generate unique call ID
+                currentCallId = `call_${Date.now()}`;
+                
+                // Save call to Firebase
+                await set(ref(database, `calls/${currentCallId}`), {
+                    callerId: currentUser.id,
+                    callerName: currentUser.name,
+                    callerPic: currentUser.profilePic || '',
+                    receiverId: currentChat.id,
+                    status: 'calling',
+                    timestamp: Date.now()
+                });
+                
+                // Show calling UI
+                showCallingUI('Calling...');
+                
+                // Play ringtone
+                playRingtone();
+                
+                // Create peer connection
+                peerConnection = new RTCPeerConnection(rtcConfiguration);
+                
+                // Add local audio stream
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                
+                // Handle remote stream
+                peerConnection.ontrack = (event) => {
+                    const remoteAudio = document.getElementById('remoteAudio');
+                    if (remoteAudio) {
+                        remoteAudio.srcObject = event.streams[0];
+                        document.getElementById('callStatus').textContent = 'Connected';
+                        stopRingtone();
+                    }
+                };
+                
+                // Handle ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        push(ref(database, `calls/${currentCallId}/callerCandidates`), 
+                            event.candidate.toJSON()
+                        );
+                    }
+                };
+                
+                // Create and set offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                await set(ref(database, `calls/${currentCallId}/offer`), {
+                    type: offer.type,
+                    sdp: offer.sdp
+                });
+                
+                // Listen for answer from receiver
+                onValue(ref(database, `calls/${currentCallId}/answer`), async (snapshot) => {
+                    if (snapshot.exists() && peerConnection) {
+                        const answer = snapshot.val();
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                        stopRingtone();
+                    }
+                });
+                
+                // Listen for receiver ICE candidates
+                onValue(ref(database, `calls/${currentCallId}/receiverCandidates`), (snapshot) => {
+                    snapshot.forEach(child => {
+                        if (peerConnection) {
+                            peerConnection.addIceCandidate(new RTCIceCandidate(child.val()));
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                console.error('Call initiation error:', error);
+                alert('Failed to start call: ' + error.message);
+                endCall();
+            }
+        };
+        
+        // Listen for Incoming Calls
+        function listenForIncomingCalls() {
+            if (!currentUser || !currentUser.id) return;
+            
+            onValue(ref(database, 'calls'), (snapshot) => {
+                snapshot.forEach(child => {
+                    const call = child.val();
+                    if (call && call.receiverId === currentUser.id && call.status === 'calling') {
+                        showIncomingCallPopup(child.key, call);
+                    }
+                });
+            });
+        }
+        
+        // Show Incoming Call Popup
+        function showIncomingCallPopup(callId, call) {
+            // Remove existing popup if any
+            document.getElementById('incomingCallPopup')?.remove();
+            
+            // Play ringtone
+            playRingtone();
+            
+            const popup = document.createElement('div');
+            popup.id = 'incomingCallPopup';
+            popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100vh;background:rgba(0,0,0,0.95);z-index:10000;display:flex;align-items:center;justify-content:center;';
+            popup.innerHTML = `
+                <div style="background:white;padding:50px 30px;border-radius:25px;text-align:center;max-width:320px;width:90%;">
+                    <div style="margin-bottom:25px;">
+                        <img src="${call.callerPic || ''}" 
+                             style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #25d366;" 
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle fill=%22%23ddd%22 cx=%2250%22 cy=%2250%22 r=%2250%22/%3E%3Ctext x=%2250%22 y=%2270%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%23666%22%3E👤%3C/text%3E%3C/svg%3E'">
+                    </div>
+                    <h2 style="margin:20px 0 10px;font-size:24px;color:#000;">${call.callerName || 'Unknown'}</h2>
+                    <p style="color:#666;font-size:16px;margin-bottom:40px;">Incoming voice call...</p>
+                    <div style="display:flex;gap:25px;justify-content:center;">
+                        <button onclick="declineCall('${callId}')" 
+                                style="width:70px;height:70px;border-radius:50%;background:#ef4444;border:none;color:white;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.4);">
+                            ✕
+                        </button>
+                        <button onclick="acceptCall('${callId}')" 
+                                style="width:70px;height:70px;border-radius:50%;background:#25d366;border:none;color:white;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(37,211,102,0.4);">
+                            📞
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(popup);
+        }
+        
+        // Accept Incoming Call
+        window.acceptCall = async function(callId) {
+            try {
+                stopRingtone();
+                document.getElementById('incomingCallPopup')?.remove();
+                
+                currentCallId = callId;
+                
+                // Get microphone permission
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true, 
+                    video: false 
+                });
+                
+                // Update call status
+                await update(ref(database, `calls/${callId}`), {
+                    status: 'accepted'
+                });
+                
+                // Get call data
+                const callSnap = await get(ref(database, `calls/${callId}`));
+                const callData = callSnap.val();
+                
+                // Show call UI
+                showCallingUI('Connected', callData);
+                
+                // Create peer connection
+                peerConnection = new RTCPeerConnection(rtcConfiguration);
+                
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                
+                peerConnection.ontrack = (event) => {
+                    const remoteAudio = document.getElementById('remoteAudio');
+                    if (remoteAudio) {
+                        remoteAudio.srcObject = event.streams[0];
+                    }
+                };
+                
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        push(ref(database, `calls/${callId}/receiverCandidates`), 
+                            event.candidate.toJSON()
+                        );
+                    }
+                };
+                
+                // Get offer and set remote description
+                const offerSnap = await get(ref(database, `calls/${callId}/offer`));
+                const offer = offerSnap.val();
+                
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                
+                // Create answer
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                await set(ref(database, `calls/${callId}/answer`), {
+                    type: answer.type,
+                    sdp: answer.sdp
+                });
+                
+                // Listen for caller ICE candidates
+                onValue(ref(database, `calls/${callId}/callerCandidates`), (snapshot) => {
+                    snapshot.forEach(child => {
+                        if (peerConnection) {
+                            peerConnection.addIceCandidate(new RTCIceCandidate(child.val()));
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                console.error('Accept call error:', error);
+                alert('Failed to accept call: ' + error.message);
+                endCall();
+            }
+        };
+        
+        // Decline Call
+        window.declineCall = async function(callId) {
+            stopRingtone();
+            document.getElementById('incomingCallPopup')?.remove();
+            
+            try {
+                await update(ref(database, `calls/${callId}`), {
+                    status: 'declined'
+                });
+                
+                setTimeout(() => {
+                    remove(ref(database, `calls/${callId}`));
+                }, 2000);
+            } catch (error) {
+                console.error('Decline call error:', error);
+            }
+        };
+        
+        // Show Calling UI
+        function showCallingUI(status, callData) {
+            document.getElementById('callUI')?.remove();
+            
+            const displayName = callData ? (callData.callerName || currentChat.name) : currentChat.name;
+            const displayPic = callData ? (callData.callerPic || currentChat.profilePic) : currentChat.profilePic;
+            
+            const callUI = document.createElement('div');
+            callUI.id = 'callUI';
+            callUI.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100vh;background:linear-gradient(135deg, #075e54 0%, #128c7e 100%);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:space-between;color:white;padding:60px 20px;';
+            callUI.innerHTML = `
+                <div style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
+                    <div style="margin-bottom:30px;">
+                        <img src="${displayPic || ''}" 
+                             style="width:140px;height:140px;border-radius:50%;border:5px solid rgba(255,255,255,0.3);object-fit:cover;box-shadow:0 8px 24px rgba(0,0,0,0.3);" 
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle fill=%22%23ddd%22 cx=%2250%22 cy=%2250%22 r=%2250%22/%3E%3Ctext x=%2250%22 y=%2270%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%23666%22%3E👤%3C/text%3E%3C/svg%3E'">
+                    </div>
+                    <h2 style="margin:0 0 12px;font-size:28px;font-weight:500;">${displayName}</h2>
+                    <p id="callStatus" style="font-size:18px;opacity:0.9;">${status}</p>
+                </div>
+                <div style="display:flex;gap:30px;justify-content:center;padding-bottom:40px;">
+                    <button onclick="toggleMute()" id="muteBtn" 
+                            style="width:65px;height:65px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:white;font-size:28px;cursor:pointer;">
+                        🎤
+                    </button>
+                    <button onclick="endCall()" 
+                            style="width:65px;height:65px;border-radius:50%;background:#ef4444;border:none;color:white;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.4);">
+                        ✕
+                    </button>
+                </div>
+                <audio id="remoteAudio" autoplay></audio>
+            `;
+            document.body.appendChild(callUI);
+        }
+        
+        // Toggle Mute
+        let isMuted = false;
+        window.toggleMute = function() {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    isMuted = !audioTrack.enabled;
+                    document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🎤';
+                }
+            }
+        };
+        
+        // End Call
+        window.endCall = async function() {
+            stopRingtone();
+            
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            // Close peer connection
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            // Remove UI elements
+            document.getElementById('callUI')?.remove();
+            document.getElementById('incomingCallPopup')?.remove();
+            
+            // Update Firebase
+            if (currentCallId) {
+                try {
+                    await update(ref(database, `calls/${currentCallId}`), {
+                        status: 'ended'
+                    });
+                    
+                    setTimeout(() => {
+                        remove(ref(database, `calls/${currentCallId}`));
+                    }, 5000);
+                } catch (error) {
+                    console.error('End call cleanup error:', error);
+                }
+                
+                currentCallId = null;
+            }
+            
+            isMuted = false;
+        };
+        
+        // Add Call Button to Chat Header
+        function addCallButtonToChat() {
+            if (!currentChat || currentChat.isGroup) return;
+            
+            const chatHeader = document.querySelector('#chatScreen .chat-info');
+            if (chatHeader && !document.getElementById('voiceCallBtn')) {
+                const callBtn = document.createElement('button');
+                callBtn.id = 'voiceCallBtn';
+                callBtn.textContent = '📞';
+                callBtn.style.cssText = 'position:absolute;right:50px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:26px;cursor:pointer;padding:8px;';
+                callBtn.onclick = initiateVoiceCall;
+                chatHeader.appendChild(callBtn);
+            }
+        }
+        
+        // Override openChatWindow to add call button
+        const originalOpenChatWindow = window.openChatWindow;
+        window.openChatWindow = function() {
+            if (originalOpenChatWindow) originalOpenChatWindow();
+            setTimeout(addCallButtonToChat, 200);
+        };
+        
+        // ============ END VOICE CALL SYSTEM ============
+        
+        // ============ PWA SERVICE WORKER ============
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('✅ Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+        
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install button
+            const installBtn = document.createElement('div');
+            installBtn.id = 'pwaInstallBtn';
+            installBtn.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#25d366;color:white;padding:14px 24px;border-radius:30px;cursor:pointer;box-shadow:0 4px 16px rgba(37,211,102,0.4);z-index:1000;font-size:15px;font-weight:500;';
+            installBtn.innerHTML = '📱 Install App';
+            installBtn.onclick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`Install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    installBtn.remove();
+                }
+            };
+            document.body.appendChild(installBtn);
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => installBtn.remove(), 10000);
+        });
+        
+        // ============ END PWA ============
 
     </script>
 </body>
