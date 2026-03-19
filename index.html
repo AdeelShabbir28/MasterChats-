@@ -2831,19 +2831,11 @@
             if (screen) screen.classList.add('active');
         }
 
-        // Check Auth
-        const userId = localStorage.getItem('currentUserId');
-        if (userId) {
-            loadUserData(userId);
-        }
-
         async function loadUserData(userId) {
             try {
                 const userSnapshot = await get(ref(database, `users/${userId}`));
                 if (userSnapshot.exists()) {
                     const userData = userSnapshot.val();
-                    
-                    // Ensure all required objects exist
                     currentUser = { 
                         id: userId, 
                         ...userData,
@@ -2851,22 +2843,20 @@
                         sentRequests: userData.sentRequests || {},
                         receivedRequests: userData.receivedRequests || {}
                     };
-                    
-                    console.log('User loaded:', currentUser.name);
-                    console.log('Friends:', Object.keys(currentUser.friends).length);
-                    console.log('Sent requests:', Object.keys(currentUser.sentRequests).length);
-                    console.log('Received requests:', Object.keys(currentUser.receivedRequests).length);
-                    
                     showScreen('mainScreen');
                     updateProfileDisplay();
                     loadChats();
                     loadGroups();
+                    loadStatuses();
                     updateNotificationBadge();
                     listenForIncomingCalls();
+                } else {
+                    localStorage.removeItem('currentUserId');
+                    showScreen('loginScreen');
                 }
             } catch (error) {
                 console.error('Load user error:', error);
-                alert('Failed to load user data: ' + error.message);
+                showScreen('loginScreen');
             }
         }
 
