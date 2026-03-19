@@ -1775,18 +1775,25 @@
             }
         }
 
-        .splash-loader {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .splash-progress-wrap {
+            width: 200px;
+            height: 6px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 12px;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .splash-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: white;
+            border-radius: 10px;
+            transition: width 0.05s linear;
+        }
+        .splash-percent {
+            font-size: 15px;
+            color: rgba(255,255,255,0.9);
+            font-weight: 500;
         }
 
         .splash-screen.hide {
@@ -1856,7 +1863,10 @@
         <div class="splash-logo">💬</div>
         <div class="splash-title">MasterChats</div>
         <div class="splash-subtitle">Connect with friends and family</div>
-        <div class="splash-loader"></div>
+        <div class="splash-progress-wrap">
+            <div class="splash-progress-bar" id="splashProgressBar"></div>
+        </div>
+        <div class="splash-percent" id="splashPercent">0%</div>
         <div class="splash-branding">✨ From ADEEL ✨</div>
     </div>
 
