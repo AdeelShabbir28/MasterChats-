@@ -2771,19 +2771,19 @@
             const splash = document.getElementById('splashScreen');
             if (splash) {
                 splash.classList.add('hide');
-                setTimeout(() => { splash.style.display = 'none'; }, 400);
+                setTimeout(() => { splash.style.display = 'none'; }, 300);
             }
         }
 
-        window.addEventListener('load', async function() {
-            const savedUserId = localStorage.getItem('currentUserId');
-            
-            if (savedUserId) {
-                // Show splash briefly then load
-                setTimeout(async () => {
-                    hideSplash();
-                    try {
-                        const userSnap = await get(ref(database, `users/${savedUserId}`));
+        window.addEventListener('load', function() {
+            // Splash sirf 2 second dikhao - kuch bhi ho
+            setTimeout(function() {
+                hideSplash();
+                
+                const savedUserId = localStorage.getItem('currentUserId');
+                if (savedUserId) {
+                    // Try auto login
+                    get(ref(database, 'users/' + savedUserId)).then(function(userSnap) {
                         if (userSnap.exists()) {
                             currentUser = {
                                 id: savedUserId,
@@ -2803,17 +2803,13 @@
                             localStorage.removeItem('currentUserId');
                             showScreen('loginScreen');
                         }
-                    } catch (error) {
+                    }).catch(function(error) {
                         console.error('Auto-login error:', error);
                         showScreen('loginScreen');
-                    }
-                }, 1500);
-            } else {
-                // No saved user - hide splash quickly
-                setTimeout(() => {
-                    hideSplash();
-                }, 1500);
-            }
+                    });
+                }
+                // Agar koi saved user nahi to login screen already active hai
+            }, 2000);
         });
 
         // Update Time
