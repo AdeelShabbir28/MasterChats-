@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MasterChats - From ADEEL</title>
+    <title>MasterChats</title>
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="MasterChats - Connect with friends and family. Chat, share status, make voice calls.">
@@ -1859,7 +1859,7 @@
 </head>
 <body>
     <!-- Splash Screen - God Level -->
-    <div class="splash-screen" id="splashScreen">
+    <div class="splash-screen" id="splashScreen" style="display:none;">
         <div class="splash-logo">💬</div>
         <div class="splash-title">MasterChats</div>
         <div class="splash-subtitle">Connect with friends and family</div>
@@ -1904,7 +1904,7 @@
                         <input type="password" id="loginPassword" placeholder="Enter your password">
                     </div>
                     
-                    <button class="btn btn-primary" onclick="loginWithEmail()">Login</button>
+                    <button class="btn btn-primary" id="loginBtn" onclick="loginWithEmail()">Login</button>
                     <button class="btn btn-secondary" onclick="showSignup()">Create New Account</button>
                 </div>
                 
@@ -2841,9 +2841,41 @@
             if (screen) screen.classList.add('active');
         }
 
+        // ===== APP INIT - Works on Vercel + Android WebView =====
+        function initApp() {
+            const savedUserId = localStorage.getItem('currentUserId');
+            if (savedUserId) {
+                loadUserData(savedUserId);
+            } else {
+                showScreen('loginScreen');
+            }
+        }
+
+        // Multiple init triggers for maximum compatibility
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(initApp, 200);
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initApp, 200);
+            });
+            window.addEventListener('load', function() {
+                setTimeout(initApp, 200);
+            });
+        }
+        // ===== END APP INIT =====
+
         async function loadUserData(userId) {
             try {
-                const userSnapshot = await get(ref(database, `users/${userId}`));
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('timeout')), 8000)
+                );
+                const dataPromise = new Promise((resolve) => {
+                    onValue(ref(database, `users/${userId}`), (snap) => {
+                        resolve(snap);
+                    }, { onlyOnce: true });
+                });
+                const userSnapshot = await Promise.race([dataPromise, timeoutPromise]);
+                
                 if (userSnapshot.exists()) {
                     const userData = userSnapshot.val();
                     currentUser = { 
@@ -3151,10 +3183,9 @@
             }
 
             // Show loading
-            const loginBtn = document.querySelector('.btn-primary');
-            const originalText = loginBtn.textContent;
-            loginBtn.textContent = 'Logging in...';
-            loginBtn.disabled = true;
+            const loginBtn = document.getElementById('loginBtn') || document.querySelector('#loginScreen .btn-primary');
+            const originalText = loginBtn ? loginBtn.textContent : 'Login';
+            if (loginBtn) { loginBtn.textContent = 'Logging in...'; loginBtn.disabled = true; }
 
             try {
                 const usersSnapshot = await get(ref(database, 'users'));
@@ -3203,15 +3234,13 @@
                     listenForIncomingCalls();
                 } else {
                     showToast('Wrong email or password!', 'error');
-                    loginBtn.textContent = originalText;
-                    loginBtn.disabled = false;
+                    if (loginBtn) { loginBtn.textContent = originalText; loginBtn.disabled = false; }
                 }
                 
             } catch (error) {
                 console.error('Login error:', error);
-                showToast('Login failed. Check internet connection!', 'error');
-                loginBtn.textContent = originalText;
-                loginBtn.disabled = false;
+                showToast('Login failed: ' + error.message, 'error');
+                if (loginBtn) { loginBtn.textContent = originalText; loginBtn.disabled = false; }
             }
         };
 
@@ -3250,7 +3279,7 @@
                     }
                 }
 
-                sessionStorage.setItem('signupData', JSON.stringify({ name, email, password, about }));
+                localStorage.setItem('signupData', JSON.stringify({ name, email, password, about }));
                 showScreen('profileSetupScreen');
                 
             } catch (error) {
@@ -3302,7 +3331,7 @@
             continueBtn.textContent = 'Saving...';
             
             try {
-                const signupData = JSON.parse(sessionStorage.getItem('signupData'));
+                const signupData = JSON.parse(localStorage.getItem('signupData'));
                 const userId = push(ref(database, 'users')).key;
                 
                 // Get profile fields
@@ -3357,7 +3386,7 @@
 
                 localStorage.setItem('currentUserId', userId);
                 currentUser = { id: userId, ...userData };
-                sessionStorage.removeItem('signupData');
+                localStorage.removeItem('signupData');
                 selectedProfilePic = null;
 
                 showScreen('mainScreen');
@@ -3381,7 +3410,7 @@
             skipBtn.textContent = 'Please wait...';
             
             try {
-                const signupData = JSON.parse(sessionStorage.getItem('signupData'));
+                const signupData = JSON.parse(localStorage.getItem('signupData'));
                 const userId = push(ref(database, 'users')).key;
 
                 const userData = {
@@ -3410,7 +3439,7 @@
 
                 localStorage.setItem('currentUserId', userId);
                 currentUser = { id: userId, ...userData };
-                sessionStorage.removeItem('signupData');
+                localStorage.removeItem('signupData');
 
                 showScreen('mainScreen');
                 updateProfileDisplay();
@@ -3751,7 +3780,7 @@
         window.logout = function() {
             if (confirm('Are you sure you want to logout?')) {
                 localStorage.clear();
-                sessionStorage.clear();
+                localStorage.removeItem('signupData');
                 currentUser = null;
                 showScreen('loginScreen');
             }
