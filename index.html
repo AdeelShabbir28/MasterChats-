@@ -2866,16 +2866,7 @@
 
         async function loadUserData(userId) {
             try {
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('timeout')), 8000)
-                );
-                const dataPromise = new Promise((resolve) => {
-                    onValue(ref(database, `users/${userId}`), (snap) => {
-                        resolve(snap);
-                    }, { onlyOnce: true });
-                });
-                const userSnapshot = await Promise.race([dataPromise, timeoutPromise]);
-                
+                const userSnapshot = await get(ref(database, `users/${userId}`));
                 if (userSnapshot.exists()) {
                     const userData = userSnapshot.val();
                     currentUser = { 
@@ -3256,35 +3247,67 @@
             const name = document.getElementById('signupName').value.trim();
             const email = document.getElementById('signupEmail').value.trim();
             const password = document.getElementById('signupPassword').value.trim();
-            const about = document.getElementById('signupAbout').value.trim();
+            const about = document.getElementById('signupAbout').value.trim() || 'Hey there! I am using MasterChats';
 
             if (!name || !email || !password) {
                 alert('Please fill all required fields');
                 return;
             }
 
+            const signupBtn = document.querySelector('#signupScreen .btn-primary');
+            if (signupBtn) { signupBtn.textContent = 'Please wait...'; signupBtn.disabled = true; }
+
             try {
-                const usersSnapshot = await get(ref(database, 'users'));
-                if (usersSnapshot.exists()) {
-                    let exists = false;
-                    usersSnapshot.forEach((child) => {
-                        if (child.val().email === email) {
-                            exists = true;
-                        }
-                    });
-
-                    if (exists) {
-                        alert('Email already registered. Please login.');
-                        return;
+                // Directly create account - skip email check for Android compatibility
+                const userId = push(ref(database, 'users')).key;
+                
+                const userData = {
+                    name: name,
+                    firstName: name.split(' ')[0] || '',
+                    lastName: name.split(' ')[1] || '',
+                    birthday: '',
+                    email: email,
+                    password: password,
+                    about: about,
+                    profilePic: '',
+                    createdAt: Date.now(),
+                    online: true,
+                    lastSeen: Date.now(),
+                    privacy: {
+                        hideProfilePic: false,
+                        hideLastSeen: false,
+                        hideAbout: false,
+                        hideFromSearch: false,
+                        readReceipts: true,
+                        onlineStatus: true
                     }
-                }
+                };
 
-                localStorage.setItem('signupData', JSON.stringify({ name, email, password, about }));
-                showScreen('profileSetupScreen');
+                await set(ref(database, `users/${userId}`), userData);
+                
+                localStorage.setItem('currentUserId', userId);
+                currentUser = { 
+                    id: userId, 
+                    ...userData,
+                    friends: {},
+                    sentRequests: {},
+                    receivedRequests: {}
+                };
+                localStorage.removeItem('signupData');
+
+                alert('Account created successfully! Welcome ' + name + '!');
+                showScreen('mainScreen');
+                updateProfileDisplay();
+                loadChats();
+                loadGroups();
+                loadStatuses();
+                updateNotificationBadge();
+                listenForIncomingCalls();
                 
             } catch (error) {
                 console.error('Signup error:', error);
                 alert('Signup failed: ' + error.message);
+                if (signupBtn) { signupBtn.textContent = 'Continue'; signupBtn.disabled = false; }
             }
         };
 
