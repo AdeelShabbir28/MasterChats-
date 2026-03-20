@@ -2866,9 +2866,11 @@
 
         async function loadUserData(userId) {
             try {
-                const userSnapshot = await get(ref(database, `users/${userId}`));
-                if (userSnapshot.exists()) {
-                    const userData = userSnapshot.val();
+                const DB_URL = 'https://chat-master-pro-1-default-rtdb.firebaseio.com';
+                const response = await fetch(`${DB_URL}/users/${userId}.json`);
+                const userData = await response.json();
+                
+                if (userData) {
                     currentUser = { 
                         id: userId, 
                         ...userData,
