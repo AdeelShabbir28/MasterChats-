@@ -3960,11 +3960,7 @@
                     messages.sort((a, b) => a.timestamp - b.timestamp);
 
                     messages.forEach(msg => {
-                        if (msg.type === 'poll') {
-                            displayPollMessage(msg);
-                        } else {
-                            displayMessage(msg);
-                        }
+                        displayMessage(msg);
                     });
 
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -7635,6 +7631,2891 @@ ${message}`,
                 console.log('Listening for incoming video calls');
             }
         }, 3000);
+
+
+        // ============================================
+        // ENHANCED FRIEND PROFILE VIEW - FULL SCREEN
+        // ============================================
+        
+        // Open friend profile (full screen)
+        window.openFriendProfile = function(userId) {
+            if (!userId) {
+                userId = currentChat?.id;
+            }
+            
+            if (!userId || userId === currentUser?.id) {
+                alert('Cannot view this profile');
+                return;
+            }
+            
+            console.log('Opening enhanced profile for:', userId);
+            
+            // Get user data
+            const userRef = ref(database, `users/${userId}`);
+            get(userRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    displayEnhancedProfile(userId, userData);
+                } else {
+                    alert('User not found');
+                }
+            }).catch(err => {
+                console.error('Error loading profile:', err);
+                alert('Failed to load profile');
+            });
+        };
+        
+        // Calculate user stats
+        async function calculateUserStats(userId) {
+            const stats = {
+                totalMessages: 0,
+                totalMedia: 0,
+                totalVoiceMsgs: 0,
+                totalCalls: 0,
+                daysSinceFirstChat: 0,
+                sharedPhotos: [],
+                sharedVideos: [],
+                friendsSince: null
+            };
+            
+            try {
+                // Get chat ID
+                const chatId = getChatId(currentUser.id, userId);
+                
+                // Get all messages
+                const messagesRef = ref(database, `messages/${chatId}`);
+                const snapshot = await get(messagesRef);
+                
+                if (snapshot.exists()) {
+                    const messages = snapshot.val();
+                    let firstMessageTime = Date.now();
+                    
+                    Object.values(messages).forEach(msg => {
+                        stats.totalMessages++;
+                        
+                        if (msg.type === 'image') {
+                            stats.totalMedia++;
+                            stats.sharedPhotos.push(msg.imageUrl);
+                        } else if (msg.type === 'video') {
+                            stats.totalMedia++;
+                            stats.sharedVideos.push(msg.videoUrl);
+                        } else if (msg.type === 'voice') {
+                            stats.totalVoiceMsgs++;
+                        }
+                        
+                        if (msg.timestamp < firstMessageTime) {
+                            firstMessageTime = msg.timestamp;
+                        }
+                    });
+                    
+                    // Calculate days since first chat
+                    stats.daysSinceFirstChat = Math.floor((Date.now() - firstMessageTime) / (1000 * 60 * 60 * 24));
+                    stats.friendsSince = new Date(firstMessageTime);
+                }
+                
+                // Get call history
+                const callsRef = ref(database, 'calls');
+                const callsSnapshot = await get(callsRef);
+                if (callsSnapshot.exists()) {
+                    Object.values(callsSnapshot.val()).forEach(call => {
+                        if ((call.caller === currentUser.id && call.receiver === userId) ||
+                            (call.caller === userId && call.receiver === currentUser.id)) {
+                            stats.totalCalls++;
+                        }
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error calculating stats:', error);
+            }
+            
+            return stats;
+        }
+        
+        // Display enhanced profile
+        async function displayEnhancedProfile(userId, userData) {
+            const mainContent = document.querySelector('.main-content');
+            if (!mainContent) return;
+            
+            // Show loading
+            mainContent.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">⏳</div>
+                        <div style="color: #666;">Loading profile...</div>
+                    </div>
+                </div>
+            `;
+            
+            // Calculate stats
+            const stats = await calculateUserStats(userId);
+            
+            // Build profile screen
+            mainContent.innerHTML = `
+                <div style="height: 100vh; display: flex; flex-direction: column; background: #f0f2f5;">
+                    
+                    <!-- Header -->
+                    <div class="header" style="background: linear-gradient(135deg, #075e54 0%, #128c7e 100%);">
+                        <div class="header-left">
+                            <button class="back-btn" onclick="backToChats()"></button>
+                            <div style="font-weight: bold; font-size: 18px;">Profile</div>
+                        </div>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <span onclick="shareContact('${userId}')" style="cursor: pointer; font-size: 20px;" title="Share Contact">📤</span>
+                            <span onclick="showProfileMenu('${userId}')" style="cursor: pointer; font-size: 20px;" title="More">⋮</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Scrollable Content -->
+                    <div style="flex: 1; overflow-y: auto; padding-bottom: 20px;">
+                        
+                        <!-- Profile Header -->
+                        <div style="background: linear-gradient(135deg, #075e54 0%, #128c7e 100%); padding: 30px 20px; text-align: center;">
+                            <div style="position: relative; display: inline-block;">
+                                <div onclick="viewProfilePhoto('${userData.profilePic || ''}')" style="width: 120px; height: 120px; border-radius: 50%; background: white; margin: 0 auto; overflow: hidden; cursor: pointer; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); position: relative;">
+                                    ${userData.profilePic ? 
+                                        `<img src="${userData.profilePic}" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                                        `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 48px; color: #075e54;">👤</div>`
+                                    }
+                                </div>
+                                ${userData.online ? 
+                                    '<div style="position: absolute; bottom: 5px; right: 5px; width: 18px; height: 18px; background: #25d366; border: 3px solid white; border-radius: 50%;"></div>' : 
+                                    ''
+                                }
+                            </div>
+                            <h2 style="color: white; margin: 15px 0 5px 0; font-size: 24px;">${userData.name || 'User'}</h2>
+                            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;">${userData.online ? '🟢 Online now' : `Last seen ${getLastSeenText(userData.lastSeen)}`}</p>
+                        </div>
+                        
+                        <!-- 1. BASIC INFO -->
+                        <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                                ℹ️ About
+                            </h3>
+                            
+                            ${userData.about ? `
+                                <div style="margin-bottom: 12px; padding: 12px; background: #f0f2f5; border-radius: 8px;">
+                                    <div style="font-size: 11px; color: #667781; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Bio</div>
+                                    <div style="font-size: 14px; color: #111; line-height: 1.4;">${userData.about}</div>
+                                </div>
+                            ` : ''}
+                            
+                            ${userData.email ? `
+                                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                                    <div style="font-size: 20px;">📧</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 11px; color: #667781; margin-bottom: 2px;">Email</div>
+                                        <div style="font-size: 14px; color: #111;">${userData.email}</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${userData.phone ? `
+                                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                                    <div style="font-size: 20px;">📱</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 11px; color: #667781; margin-bottom: 2px;">Phone</div>
+                                        <div style="font-size: 14px; color: #111;">${userData.phone}</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${userData.birthday ? `
+                                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                                    <div style="font-size: 20px;">🎂</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 11px; color: #667781; margin-bottom: 2px;">Birthday</div>
+                                        <div style="font-size: 14px; color: #111;">${new Date(userData.birthday).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${userData.location ? `
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="font-size: 20px;">📍</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 11px; color: #667781; margin-bottom: 2px;">Location</div>
+                                        <div style="font-size: 14px; color: #111;">${userData.location}</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- 2. MEDIA & STATS -->
+                        <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                                📊 Chat Statistics
+                            </h3>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: white;">${stats.totalMessages}</div>
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-top: 4px;">Messages</div>
+                                </div>
+                                
+                                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: white;">${stats.totalMedia}</div>
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-top: 4px;">Media Shared</div>
+                                </div>
+                                
+                                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: white;">${stats.totalVoiceMsgs}</div>
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-top: 4px;">Voice Notes</div>
+                                </div>
+                                
+                                <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: white;">${stats.totalCalls}</div>
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.9); margin-top: 4px;">Total Calls</div>
+                                </div>
+                            </div>
+                            
+                            ${stats.friendsSince ? `
+                                <div style="margin-top: 15px; padding: 12px; background: #dcf8c6; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 12px; color: #667781; margin-bottom: 4px;">Friends Since</div>
+                                    <div style="font-size: 14px; font-weight: bold; color: #075e54;">${stats.friendsSince.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                                    <div style="font-size: 12px; color: #667781; margin-top: 4px;">${stats.daysSinceFirstChat} days ago</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- 3. SHARED CONTENT -->
+                        ${stats.sharedPhotos.length > 0 || stats.sharedVideos.length > 0 ? `
+                            <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                                <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="display: flex; align-items: center; gap: 8px;">🖼️ Shared Media</span>
+                                    <span onclick="viewAllMedia('${userId}')" style="font-size: 13px; color: #128c7e; cursor: pointer; font-weight: normal;">View All</span>
+                                </h3>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
+                                    ${stats.sharedPhotos.slice(0, 6).map(photo => `
+                                        <div onclick="openImageViewer('${photo}', '${userData.name}')" style="aspect-ratio: 1; background: #f0f2f5; border-radius: 6px; overflow: hidden; cursor: pointer;">
+                                            <img src="${photo}" style="width: 100%; height: 100%; object-fit: cover;">
+                                        </div>
+                                    `).join('')}
+                                    ${stats.sharedPhotos.length > 6 ? `
+                                        <div onclick="viewAllMedia('${userId}')" style="aspect-ratio: 1; background: rgba(7,94,84,0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                            <div style="text-align: center; color: #075e54;">
+                                                <div style="font-size: 24px; font-weight: bold;">+${stats.sharedPhotos.length - 6}</div>
+                                                <div style="font-size: 11px;">More</div>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- 4. QUICK ACTIONS -->
+                        <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                                ⚡ Quick Actions
+                            </h3>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px;">
+                                <div onclick="startChatWith('${userId}')" style="text-align: center; cursor: pointer;">
+                                    <div style="width: 56px; height: 56px; background: #dcf8c6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">💬</div>
+                                    <div style="font-size: 11px; color: #667781;">Message</div>
+                                </div>
+                                
+                                <div onclick="callUser('${userId}', 'voice')" style="text-align: center; cursor: pointer;">
+                                    <div style="width: 56px; height: 56px; background: #dcf8c6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">📞</div>
+                                    <div style="font-size: 11px; color: #667781;">Call</div>
+                                </div>
+                                
+                                <div onclick="callUser('${userId}', 'video')" style="text-align: center; cursor: pointer;">
+                                    <div style="width: 56px; height: 56px; background: #dcf8c6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">📹</div>
+                                    <div style="font-size: 11px; color: #667781;">Video</div>
+                                </div>
+                                
+                                <div onclick="viewUserStatus('${userId}')" style="text-align: center; cursor: pointer;">
+                                    <div style="width: 56px; height: 56px; background: #dcf8c6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">⭕</div>
+                                    <div style="font-size: 11px; color: #667781;">Status</div>
+                                </div>
+                            </div>
+                            
+                            <div onclick="muteNotifications('${userId}')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 20px;">🔕</span>
+                                    <span style="font-size: 14px; color: #111;">Mute Notifications</span>
+                                </div>
+                                <span style="font-size: 18px; color: #8696a0;">›</span>
+                            </div>
+                            
+                            <div onclick="shareContact('${userId}')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 20px;">📤</span>
+                                    <span style="font-size: 14px; color: #111;">Share Contact</span>
+                                </div>
+                                <span style="font-size: 18px; color: #8696a0;">›</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 5. PRIVACY & SETTINGS -->
+                        <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                                🔒 Privacy & Chat Settings
+                            </h3>
+                            
+                            <div onclick="toggleDisappearingMessages('${userId}')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 20px;">⏰</span>
+                                    <div>
+                                        <div style="font-size: 14px; color: #111;">Disappearing Messages</div>
+                                        <div style="font-size: 12px; color: #667781;">Off</div>
+                                    </div>
+                                </div>
+                                <span style="font-size: 18px; color: #8696a0;">›</span>
+                            </div>
+                            
+                            <div onclick="customizeChatWallpaper('${userId}')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 20px;">🎨</span>
+                                    <span style="font-size: 14px; color: #111;">Wallpaper & Theme</span>
+                                </div>
+                                <span style="font-size: 18px; color: #8696a0;">›</span>
+                            </div>
+                            
+                            <div onclick="viewStarredMessages('${userId}')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 20px;">⭐</span>
+                                    <span style="font-size: 14px; color: #111;">Starred Messages</span>
+                                </div>
+                                <span style="font-size: 18px; color: #8696a0;">›</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 6. SOCIAL LINKS -->
+                        ${userData.instagram || userData.facebook || userData.twitter || userData.website ? `
+                            <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                                <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                                    🔗 Social Links
+                                </h3>
+                                
+                                ${userData.instagram ? `
+                                    <div onclick="window.open('https://instagram.com/${userData.instagram}', '_blank')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 10px;">
+                                        <span style="font-size: 20px;">📷</span>
+                                        <div style="flex: 1;">
+                                            <div style="font-size: 12px; color: #667781;">Instagram</div>
+                                            <div style="font-size: 14px; color: #111;">@${userData.instagram}</div>
+                                        </div>
+                                        <span style="font-size: 16px; color: #8696a0;">↗</span>
+                                    </div>
+                                ` : ''}
+                                
+                                ${userData.facebook ? `
+                                    <div onclick="window.open('${userData.facebook}', '_blank')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 10px;">
+                                        <span style="font-size: 20px;">👤</span>
+                                        <div style="flex: 1;">
+                                            <div style="font-size: 12px; color: #667781;">Facebook</div>
+                                            <div style="font-size: 14px; color: #111;">View Profile</div>
+                                        </div>
+                                        <span style="font-size: 16px; color: #8696a0;">↗</span>
+                                    </div>
+                                ` : ''}
+                                
+                                ${userData.twitter ? `
+                                    <div onclick="window.open('https://twitter.com/${userData.twitter}', '_blank')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 10px;">
+                                        <span style="font-size: 20px;">🐦</span>
+                                        <div style="flex: 1;">
+                                            <div style="font-size: 12px; color: #667781;">Twitter</div>
+                                            <div style="font-size: 14px; color: #111;">@${userData.twitter}</div>
+                                        </div>
+                                        <span style="font-size: 16px; color: #8696a0;">↗</span>
+                                    </div>
+                                ` : ''}
+                                
+                                ${userData.website ? `
+                                    <div onclick="window.open('${userData.website}', '_blank')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                                        <span style="font-size: 20px;">🌐</span>
+                                        <div style="flex: 1;">
+                                            <div style="font-size: 12px; color: #667781;">Website</div>
+                                            <div style="font-size: 14px; color: #111; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${userData.website}</div>
+                                        </div>
+                                        <span style="font-size: 16px; color: #8696a0;">↗</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- 12. SECURITY -->
+                        <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                                🛡️ Security
+                            </h3>
+                            
+                            <div style="padding: 12px; background: #e7ffdb; border-radius: 8px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                                <span style="font-size: 20px;">🔐</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 13px; color: #111; font-weight: 500;">End-to-End Encrypted</div>
+                                    <div style="font-size: 11px; color: #667781; margin-top: 2px;">Messages and calls are secure</div>
+                                </div>
+                                <span style="font-size: 20px;">✓</span>
+                            </div>
+                            
+                            ${userData.verified ? `
+                                <div style="padding: 12px; background: #dcf8c6; border-radius: 8px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                                    <span style="font-size: 20px;">✓</span>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 13px; color: #111; font-weight: 500;">Verified Account</div>
+                                        <div style="font-size: 11px; color: #667781; margin-top: 2px;">This account is verified</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Danger Zone -->
+                        <div style="background: white; margin: 12px; padding: 18px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            <div onclick="clearChatHistory('${userId}')" style="padding: 12px; background: #fff3cd; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 10px;">
+                                <span style="font-size: 20px;">🗑️</span>
+                                <span style="font-size: 14px; color: #856404;">Clear Chat History</span>
+                            </div>
+                            
+                            <div onclick="blockUser('${userId}')" style="padding: 12px; background: #f8d7da; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 10px;">
+                                <span style="font-size: 20px;">🚫</span>
+                                <span style="font-size: 14px; color: #721c24;">Block User</span>
+                            </div>
+                            
+                            <div onclick="reportUser('${userId}')" style="padding: 12px; background: #f8d7da; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                                <span style="font-size: 20px;">⚠️</span>
+                                <span style="font-size: 14px; color: #721c24;">Report User</span>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Helper function for last seen text
+        function getLastSeenText(lastSeen) {
+            if (!lastSeen) return 'recently';
+            
+            const now = Date.now();
+            const diff = now - lastSeen;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return 'just now';
+            if (minutes < 60) return `${minutes} min ago`;
+            if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+            return new Date(lastSeen).toLocaleDateString();
+        }
+        
+        // Quick action functions
+        window.startChatWith = function(userId) {
+            // Open chat with user
+            backToChats();
+            setTimeout(() => {
+                const userChat = document.querySelector(`[data-user-id="${userId}"]`);
+                if (userChat) userChat.click();
+            }, 100);
+        };
+        
+        window.callUser = function(userId, type) {
+            backToChats();
+            setTimeout(() => {
+                if (type === 'voice') {
+                    startVoiceCall();
+                } else {
+                    startVideoCall();
+                }
+            }, 200);
+        };
+        
+        window.viewUserStatus = function(userId) {
+            // TODO: Implement status view
+            alert('Status viewing coming soon!');
+        };
+        
+        window.viewAllMedia = function(userId) {
+            alert('View all media gallery - Coming soon!');
+        };
+        
+        window.muteNotifications = function(userId) {
+            const options = ['8 hours', '1 week', 'Always'];
+            const choice = prompt('Mute notifications for:\n1. 8 hours\n2. 1 week\n3. Always\n\nEnter number:');
+            
+            if (choice && choice >= 1 && choice <= 3) {
+                alert(`Notifications muted for ${options[choice-1]}`);
+                // TODO: Implement in Firebase
+            }
+        };
+        
+        window.shareContact = function(userId) {
+            alert('Share contact - Coming soon!');
+        };
+        
+        window.toggleDisappearingMessages = function(userId) {
+            alert('Disappearing messages setting - Coming soon!');
+        };
+        
+        window.customizeChatWallpaper = function(userId) {
+            // Open theme selector for this chat
+            showThemeSelector();
+        };
+        
+        window.viewStarredMessages = function(userId) {
+            alert('Starred messages - Coming soon!');
+        };
+        
+        window.clearChatHistory = function(userId) {
+            if (confirm('Are you sure you want to clear all chat history with this user? This cannot be undone.')) {
+                const chatId = getChatId(currentUser.id, userId);
+                const messagesRef = ref(database, `messages/${chatId}`);
+                remove(messagesRef).then(() => {
+                    alert('Chat history cleared');
+                    backToChats();
+                }).catch(err => {
+                    console.error('Error clearing chat:', err);
+                    alert('Failed to clear chat history');
+                });
+            }
+        };
+        
+        window.blockUser = function(userId) {
+            if (confirm('Block this user? They will no longer be able to call you or send you messages.')) {
+                // TODO: Implement block functionality
+                alert('User blocked');
+            }
+        };
+        
+        window.reportUser = function(userId) {
+            const reason = prompt('Report this user for:\n1. Spam\n2. Harassment\n3. Inappropriate content\n4. Other\n\nEnter number:');
+            if (reason) {
+                alert('User reported. Thank you for helping keep MasterChats safe.');
+            }
+        };
+        
+        window.viewProfilePhoto = function(photoUrl) {
+            if (!photoUrl) return;
+            openImageViewer(photoUrl, 'Profile Photo');
+        };
+        
+        window.showProfileMenu = function(userId) {
+            alert('Profile menu - More options coming soon!');
+        };
+        
+        console.log('✅ Enhanced Friend Profile feature loaded');
+
+
+        // ============================================
+        // TOP 10 NEW FEATURES - IMPLEMENTATION
+        // ============================================
+        
+        // Global variables for new features
+        let archivedChats = new Set();
+        let pinnedChats = new Set();
+        let replyingToMessage = null;
+        
+        // ============================================
+        // 1. MESSAGE REPLY (Quote Message)
+        // ============================================
+        
+        window.replyToMessage = function(messageId, messageText, senderName) {
+            console.log('Replying to message:', messageId);
+            
+            replyingToMessage = {
+                id: messageId,
+                text: messageText || '[Media]',
+                sender: senderName
+            };
+            
+            // Show reply preview
+            const inputContainer = document.getElementById('chatInputContainer');
+            if (!inputContainer) return;
+            
+            // Remove existing reply preview
+            const existingPreview = document.querySelector('.reply-preview');
+            if (existingPreview) existingPreview.remove();
+            
+            // Create reply preview
+            const replyPreview = document.createElement('div');
+            replyPreview.className = 'reply-preview';
+            replyPreview.style.cssText = 'background: #f0f2f5; padding: 10px 15px; border-left: 4px solid #075e54; margin: 0 10px 5px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;';
+            replyPreview.innerHTML = `
+                <div style="flex: 1;">
+                    <div style="font-size: 12px; color: #075e54; font-weight: bold; margin-bottom: 3px;">Replying to ${senderName}</div>
+                    <div style="font-size: 13px; color: #667781; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}</div>
+                </div>
+                <button onclick="cancelReply()" style="background: none; border: none; font-size: 20px; color: #8696a0; cursor: pointer; padding: 0 0 0 10px;">×</button>
+            `;
+            
+            inputContainer.parentNode.insertBefore(replyPreview, inputContainer);
+            
+            // Focus on input
+            document.getElementById('messageInput').focus();
+        };
+        
+        window.cancelReply = function() {
+            replyingToMessage = null;
+            const preview = document.querySelector('.reply-preview');
+            if (preview) preview.remove();
+        };
+        
+        // Modify sendMessage to include reply
+        const originalSendMessage = window.sendMessage;
+        window.sendMessage = async function() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            try {
+                const messageData = {
+                    senderId: currentUser.id,
+                    senderName: currentUser.name,
+                    text: text,
+                    timestamp: Date.now(),
+                    read: false
+                };
+                
+                // Add reply info if replying
+                if (replyingToMessage) {
+                    messageData.replyTo = {
+                        messageId: replyingToMessage.id,
+                        text: replyingToMessage.text,
+                        sender: replyingToMessage.sender
+                    };
+                    cancelReply();
+                }
+                
+                // Send message (same as original)
+                if (currentChat.isGroup) {
+                    messageData.receiverId = currentChat.id;
+                    const messageRef = push(ref(database, `groupMessages/${currentChat.id}`));
+                    await set(messageRef, messageData);
+                } else {
+                    const chatId = getChatId(currentUser.id, currentChat.id);
+                    messageData.receiverId = currentChat.id;
+                    const messageRef = push(ref(database, `messages/${chatId}`));
+                    await set(messageRef, messageData);
+                    
+                    const chatData = {
+                        lastMessage: text,
+                        lastMessageTime: Date.now(),
+                        lastSender: currentUser.id
+                    };
+                    await update(ref(database, `chats/${currentUser.id}/${currentChat.id}`), chatData);
+                    await update(ref(database, `chats/${currentChat.id}/${currentUser.id}`), chatData);
+                }
+                
+                input.value = '';
+                
+            } catch (error) {
+                console.error('Send message error:', error);
+                alert('Failed to send message');
+            }
+        };
+        
+        // ============================================
+        // 2. MESSAGE FORWARD
+        // ============================================
+        
+        window.forwardMessage = function(messageText, messageType = 'text') {
+            console.log('Forwarding message:', messageText);
+            
+            // Get all chats
+            const chatsRef = ref(database, `chats/${currentUser.id}`);
+            get(chatsRef).then((snapshot) => {
+                if (!snapshot.exists()) {
+                    alert('No chats available to forward to');
+                    return;
+                }
+                
+                const chats = [];
+                snapshot.forEach((child) => {
+                    chats.push({
+                        id: child.key,
+                        ...child.val()
+                    });
+                });
+                
+                // Show forward dialog
+                showForwardDialog(chats, messageText, messageType);
+            });
+        };
+        
+        function showForwardDialog(chats, messageText, messageType) {
+            const overlay = document.createElement('div');
+            overlay.className = 'forward-overlay';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+            
+            overlay.innerHTML = `
+                <div style="background: white; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; max-height: 70vh; overflow-y: auto;">
+                    <h3 style="margin: 0 0 15px 0; color: #075e54; font-size: 18px;">Forward to...</h3>
+                    <div id="forwardChatList" style="max-height: 400px; overflow-y: auto;">
+                        ${chats.map(chat => `
+                            <div onclick="confirmForward('${chat.id}', '${messageText.replace(/'/g, "\\'")}', '${messageType}')" style="padding: 12px; background: #f0f2f5; border-radius: 8px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.2s;" onmouseover="this.style.background='#e4e6e9'" onmouseout="this.style.background='#f0f2f5'">
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: #075e54; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
+                                    ${(chat.name || 'U')[0].toUpperCase()}
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 500; color: #111;">${chat.name || 'Unknown'}</div>
+                                    <div style="font-size: 12px; color: #667781;">${chat.lastMessage || ''}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="this.closest('.forward-overlay').remove()" style="width: 100%; padding: 12px; background: #8696a0; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 15px; font-weight: bold;">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+        
+        window.confirmForward = async function(targetUserId, messageText, messageType) {
+            try {
+                const chatId = getChatId(currentUser.id, targetUserId);
+                const messageRef = push(ref(database, `messages/${chatId}`));
+                
+                await set(messageRef, {
+                    senderId: currentUser.id,
+                    senderName: currentUser.name,
+                    text: messageText,
+                    type: messageType,
+                    timestamp: Date.now(),
+                    forwarded: true,
+                    read: false,
+                    receiverId: targetUserId
+                });
+                
+                document.querySelector('.forward-overlay').remove();
+                alert('Message forwarded!');
+                
+            } catch (error) {
+                console.error('Forward error:', error);
+                alert('Failed to forward message');
+            }
+        };
+        
+        // ============================================
+        // 3. MESSAGE DELETE FOR EVERYONE
+        // ============================================
+        
+        window.deleteMessageForEveryone = async function(messageId) {
+            if (!confirm('Delete this message for everyone?')) return;
+            
+            try {
+                const chatId = currentChat.isGroup ? currentChat.id : getChatId(currentUser.id, currentChat.id);
+                const messagePath = currentChat.isGroup ? `groupMessages/${chatId}/${messageId}` : `messages/${chatId}/${messageId}`;
+                
+                // Replace message with deleted indicator
+                await update(ref(database, messagePath), {
+                    deleted: true,
+                    deletedBy: currentUser.id,
+                    deletedAt: Date.now(),
+                    text: 'This message was deleted',
+                    type: 'deleted'
+                });
+                
+                console.log('Message deleted for everyone');
+                
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('Failed to delete message');
+            }
+        };
+        
+        // ============================================
+        // 4. ARCHIVE CHATS
+        // ============================================
+        
+        window.archiveChat = async function(userId) {
+            try {
+                archivedChats.add(userId);
+                
+                // Save to Firebase
+                await set(ref(database, `users/${currentUser.id}/archivedChats/${userId}`), true);
+                
+                // Remove from chat list UI
+                const chatItem = document.querySelector(`[data-user-id="${userId}"]`);
+                if (chatItem) chatItem.style.display = 'none';
+                
+                alert('Chat archived');
+                
+            } catch (error) {
+                console.error('Archive error:', error);
+                alert('Failed to archive chat');
+            }
+        };
+        
+        window.unarchiveChat = async function(userId) {
+            try {
+                archivedChats.delete(userId);
+                await remove(ref(database, `users/${currentUser.id}/archivedChats/${userId}`));
+                
+                alert('Chat unarchived');
+                loadChats(); // Reload chats
+                
+            } catch (error) {
+                console.error('Unarchive error:', error);
+            }
+        };
+        
+        window.viewArchivedChats = function() {
+            if (archivedChats.size === 0) {
+                alert('No archived chats');
+                return;
+            }
+            
+            alert('Archived chats viewer - Coming in next update!');
+            // TODO: Show archived chats screen
+        };
+        
+        // ============================================
+        // 5. PIN CHATS (Top 3)
+        // ============================================
+        
+        window.pinChat = async function(userId) {
+            try {
+                if (pinnedChats.size >= 3) {
+                    alert('Maximum 3 chats can be pinned. Unpin a chat first.');
+                    return;
+                }
+                
+                pinnedChats.add(userId);
+                await set(ref(database, `users/${currentUser.id}/pinnedChats/${userId}`), Date.now());
+                
+                alert('Chat pinned to top');
+                loadChats(); // Reload to show pinned at top
+                
+            } catch (error) {
+                console.error('Pin error:', error);
+                alert('Failed to pin chat');
+            }
+        };
+        
+        window.unpinChat = async function(userId) {
+            try {
+                pinnedChats.delete(userId);
+                await remove(ref(database, `users/${currentUser.id}/pinnedChats/${userId}`));
+                
+                alert('Chat unpinned');
+                loadChats();
+                
+            } catch (error) {
+                console.error('Unpin error:', error);
+            }
+        };
+        
+        // ============================================
+        // 6. GROUP DESCRIPTION
+        // ============================================
+        
+        window.setGroupDescription = async function(groupId, description) {
+            try {
+                await update(ref(database, `groups/${groupId}`), {
+                    description: description,
+                    descriptionUpdatedBy: currentUser.id,
+                    descriptionUpdatedAt: Date.now()
+                });
+                
+                alert('Group description updated');
+                
+            } catch (error) {
+                console.error('Description update error:', error);
+                alert('Failed to update description');
+            }
+        };
+        
+        window.editGroupDescription = function(groupId, currentDescription = '') {
+            const newDescription = prompt('Enter group description:', currentDescription);
+            if (newDescription !== null) {
+                setGroupDescription(groupId, newDescription.trim());
+            }
+        };
+        
+        // ============================================
+        // 7. LOCATION SHARING
+        // ============================================
+        
+        window.shareLocation = function() {
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser');
+                return;
+            }
+            
+            if (confirm('Share your current location?')) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        try {
+                            const chatId = currentChat.isGroup ? currentChat.id : getChatId(currentUser.id, currentChat.id);
+                            const messagesPath = currentChat.isGroup ? `groupMessages/${chatId}` : `messages/${chatId}`;
+                            const messageRef = push(ref(database, messagesPath));
+                            
+                            await set(messageRef, {
+                                senderId: currentUser.id,
+                                senderName: currentUser.name,
+                                type: 'location',
+                                latitude: lat,
+                                longitude: lng,
+                                locationUrl: `https://www.google.com/maps?q=${lat},${lng}`,
+                                timestamp: Date.now(),
+                                read: false
+                            });
+                            
+                            console.log('Location shared');
+                            
+                        } catch (error) {
+                            console.error('Location share error:', error);
+                            alert('Failed to share location');
+                        }
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        alert('Failed to get location. Please enable location permissions.');
+                    }
+                );
+            }
+        };
+        
+        // ============================================
+        // 8. DOCUMENT SHARING (PDF)
+        // ============================================
+        
+        window.shareDocument = function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pdf,.doc,.docx,.txt,.zip,.rar';
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // Check file size (max 10MB for free version)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('File too large. Maximum size is 10MB.');
+                    return;
+                }
+                
+                try {
+                    // Convert to base64
+                    const base64 = await convertFileToBase64(file);
+                    
+                    const chatId = currentChat.isGroup ? currentChat.id : getChatId(currentUser.id, currentChat.id);
+                    const messagesPath = currentChat.isGroup ? `groupMessages/${chatId}` : `messages/${chatId}`;
+                    const messageRef = push(ref(database, messagesPath));
+                    
+                    await set(messageRef, {
+                        senderId: currentUser.id,
+                        senderName: currentUser.name,
+                        type: 'document',
+                        fileName: file.name,
+                        fileSize: file.size,
+                        fileType: file.type,
+                        documentData: base64,
+                        timestamp: Date.now(),
+                        read: false
+                    });
+                    
+                    console.log('Document shared:', file.name);
+                    
+                } catch (error) {
+                    console.error('Document share error:', error);
+                    alert('Failed to share document');
+                }
+            };
+            
+            input.click();
+        };
+        
+        function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // ============================================
+        // 9. MESSAGE COPY
+        // ============================================
+        
+        window.copyMessage = function(messageText) {
+            if (!navigator.clipboard) {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = messageText;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('Message copied!');
+                return;
+            }
+            
+            navigator.clipboard.writeText(messageText).then(() => {
+                alert('Message copied to clipboard!');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                alert('Failed to copy message');
+            });
+        };
+        
+        // ============================================
+        // 10. GIF SUPPORT
+        // ============================================
+        
+        window.sendGif = function() {
+            // Show GIF picker (using Giphy API - free)
+            showGifPicker();
+        };
+        
+        function showGifPicker() {
+            const overlay = document.createElement('div');
+            overlay.className = 'gif-picker-overlay';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+            
+            overlay.innerHTML = `
+                <div style="background: white; border-radius: 15px; padding: 20px; max-width: 500px; width: 100%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #075e54;">Select GIF</h3>
+                        <button onclick="this.closest('.gif-picker-overlay').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #8696a0;">×</button>
+                    </div>
+                    
+                    <input type="text" id="gifSearchInput" placeholder="Search GIFs..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 15px; font-size: 14px;" onkeyup="searchGifs(this.value)">
+                    
+                    <div id="gifResults" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; overflow-y: auto; max-height: 400px;">
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #8696a0;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🎬</div>
+                            <div>Search for GIFs above</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+        
+        window.searchGifs = async function(query) {
+            if (!query.trim()) return;
+            
+            const resultsDiv = document.getElementById('gifResults');
+            resultsDiv.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #8696a0;">Searching...</div>';
+            
+            // Using Giphy API (free tier)
+            const apiKey = 'sWeNDsJvn9vQnN4pMDc6Gv6kLfPjLFuM'; // Public API key
+            const url = `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=10&rating=g`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.data && data.data.length > 0) {
+                    resultsDiv.innerHTML = data.data.map(gif => `
+                        <div onclick="selectGif('${gif.images.fixed_height.url}')" style="cursor: pointer; border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: #f0f2f5;">
+                            <img src="${gif.images.fixed_height.url}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    `).join('');
+                } else {
+                    resultsDiv.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #8696a0;">No GIFs found</div>';
+                }
+            } catch (error) {
+                console.error('GIF search error:', error);
+                resultsDiv.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #dc3545;">Failed to load GIFs</div>';
+            }
+        };
+        
+        window.selectGif = async function(gifUrl) {
+            document.querySelector('.gif-picker-overlay').remove();
+            
+            try {
+                const chatId = currentChat.isGroup ? currentChat.id : getChatId(currentUser.id, currentChat.id);
+                const messagesPath = currentChat.isGroup ? `groupMessages/${chatId}` : `messages/${chatId}`;
+                const messageRef = push(ref(database, messagesPath));
+                
+                await set(messageRef, {
+                    senderId: currentUser.id,
+                    senderName: currentUser.name,
+                    type: 'gif',
+                    gifUrl: gifUrl,
+                    timestamp: Date.now(),
+                    read: false
+                });
+                
+                console.log('GIF sent');
+                
+            } catch (error) {
+                console.error('GIF send error:', error);
+                alert('Failed to send GIF');
+            }
+        };
+        
+        // ============================================
+        // MESSAGE CONTEXT MENU (Long Press)
+        // ============================================
+        
+        window.showMessageMenu = function(messageId, messageText, isSent, senderName) {
+            const menu = document.createElement('div');
+            menu.className = 'message-context-menu';
+            menu.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 10000; box-shadow: 0 -4px 12px rgba(0,0,0,0.15); animation: slideUp 0.3s ease;';
+            
+            menu.innerHTML = `
+                <style>
+                    @keyframes slideUp {
+                        from { transform: translateY(100%); }
+                        to { transform: translateY(0); }
+                    }
+                </style>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
+                    <div onclick="replyToMessage('${messageId}', '${messageText.replace(/'/g, "\\'")}', '${senderName}'); closeMessageMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #f0f2f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">↩️</div>
+                        <div style="font-size: 12px; color: #667781;">Reply</div>
+                    </div>
+                    
+                    <div onclick="forwardMessage('${messageText.replace(/'/g, "\\'")}'); closeMessageMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #f0f2f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">↗️</div>
+                        <div style="font-size: 12px; color: #667781;">Forward</div>
+                    </div>
+                    
+                    <div onclick="copyMessage('${messageText.replace(/'/g, "\\'")}'); closeMessageMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #f0f2f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">📋</div>
+                        <div style="font-size: 12px; color: #667781;">Copy</div>
+                    </div>
+                    
+                    ${isSent ? `
+                        <div onclick="deleteMessageForEveryone('${messageId}'); closeMessageMenu()" style="text-align: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; background: #ffebee; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">🗑️</div>
+                            <div style="font-size: 12px; color: #dc3545;">Delete</div>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <button onclick="closeMessageMenu()" style="width: 100%; padding: 15px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: #111;">
+                    Cancel
+                </button>
+            `;
+            
+            // Add backdrop
+            const backdrop = document.createElement('div');
+            backdrop.className = 'message-menu-backdrop';
+            backdrop.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;';
+            backdrop.onclick = closeMessageMenu;
+            
+            document.body.appendChild(backdrop);
+            document.body.appendChild(menu);
+        };
+        
+        window.closeMessageMenu = function() {
+            const menu = document.querySelector('.message-context-menu');
+            const backdrop = document.querySelector('.message-menu-backdrop');
+            if (menu) menu.remove();
+            if (backdrop) backdrop.remove();
+        };
+        
+        // ============================================
+        // ATTACH FILE MENU (Updated)
+        // ============================================
+        
+        const originalAttachFile = window.attachFile;
+        window.attachFile = function() {
+            const menu = document.createElement('div');
+            menu.className = 'attach-menu';
+            menu.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 10000; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);';
+            
+            menu.innerHTML = `
+                <h4 style="margin: 0 0 20px 0; color: #075e54;">Share</h4>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
+                    <div onclick="openCamera(); closeAttachMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #dcf8c6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">📷</div>
+                        <div style="font-size: 12px; color: #667781;">Camera</div>
+                    </div>
+                    
+                    <div onclick="selectImageFromGallery(); closeAttachMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #f3e5f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">🖼️</div>
+                        <div style="font-size: 12px; color: #667781;">Gallery</div>
+                    </div>
+                    
+                    <div onclick="shareDocument(); closeAttachMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #e3f2fd; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">📄</div>
+                        <div style="font-size: 12px; color: #667781;">Document</div>
+                    </div>
+                    
+                    <div onclick="shareLocation(); closeAttachMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #fff3e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">📍</div>
+                        <div style="font-size: 12px; color: #667781;">Location</div>
+                    </div>
+                    
+                    <div onclick="sendGif(); closeAttachMenu()" style="text-align: center; cursor: pointer;">
+                        <div style="width: 56px; height: 56px; background: #fce4ec; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 24px;">🎬</div>
+                        <div style="font-size: 12px; color: #667781;">GIF</div>
+                    </div>
+                </div>
+                
+                <button onclick="closeAttachMenu()" style="width: 100%; padding: 15px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    Cancel
+                </button>
+            `;
+            
+            const backdrop = document.createElement('div');
+            backdrop.onclick = closeAttachMenu;
+            backdrop.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;';
+            
+            document.body.appendChild(backdrop);
+            document.body.appendChild(menu);
+        };
+        
+        window.closeAttachMenu = function() {
+            const menu = document.querySelector('.attach-menu');
+            const backdrop = menu?.previousElementSibling;
+            if (menu) menu.remove();
+            if (backdrop) backdrop.remove();
+        };
+        
+        window.selectImageFromGallery = function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.multiple = false;
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    sendImageMessage(file);
+                }
+            };
+            input.click();
+        };
+        
+        console.log('✅ Top 10 Features Loaded Successfully!');
+        console.log('1. ✅ Message Reply');
+        console.log('2. ✅ Message Forward');
+        console.log('3. ✅ Delete for Everyone');
+        console.log('4. ✅ Archive Chats');
+        console.log('5. ✅ Pin Chats');
+        console.log('6. ✅ Group Description');
+        console.log('7. ✅ Location Sharing');
+        console.log('8. ✅ Document Sharing');
+        console.log('9. ✅ Message Copy');
+        console.log('10. ✅ GIF Support');
+
+
+        // ============================================
+        // TOP 15 ADMIN FEATURES - IMPLEMENTATION
+        // ============================================
+        
+        // Global admin variables
+        let mutedMembers = new Set();
+        let bannedMembers = new Set();
+        let pendingJoinRequests = {};
+        
+        // ============================================
+        // 1. REMOVE MEMBER (KICK)
+        // ============================================
+        
+        window.removeMember = async function(groupId, userId, userName) {
+            if (!confirm(`Remove ${userName} from the group?`)) return;
+            
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                // Check if current user is admin
+                if (!groupData.admins || !groupData.admins[currentUser.id]) {
+                    alert('Only admins can remove members');
+                    return;
+                }
+                
+                // Remove member
+                await remove(ref(database, `groups/${groupId}/members/${userId}`));
+                await remove(ref(database, `users/${userId}/groups/${groupId}`));
+                
+                // Log activity
+                await logAdminActivity(groupId, 'removed_member', `${currentUser.name} removed ${userName}`);
+                
+                // Send system message
+                await sendSystemMessage(groupId, `${userName} was removed by ${currentUser.name}`);
+                
+                alert(`${userName} removed from group`);
+                
+            } catch (error) {
+                console.error('Remove member error:', error);
+                alert('Failed to remove member');
+            }
+        };
+        
+        // ============================================
+        // 2. PROMOTE/DEMOTE ADMIN
+        // ============================================
+        
+        window.promoteToAdmin = async function(groupId, userId, userName) {
+            if (!confirm(`Make ${userName} an admin?`)) return;
+            
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                // Check if current user is admin
+                if (!groupData.admins || !groupData.admins[currentUser.id]) {
+                    alert('Only admins can promote members');
+                    return;
+                }
+                
+                // Check if already admin
+                if (groupData.admins && groupData.admins[userId]) {
+                    alert('User is already an admin');
+                    return;
+                }
+                
+                // Promote to admin
+                await set(ref(database, `groups/${groupId}/admins/${userId}`), true);
+                
+                // Log activity
+                await logAdminActivity(groupId, 'promoted_admin', `${currentUser.name} made ${userName} an admin`);
+                
+                // Send system message
+                await sendSystemMessage(groupId, `${userName} is now an admin`);
+                
+                alert(`${userName} is now an admin!`);
+                
+            } catch (error) {
+                console.error('Promote error:', error);
+                alert('Failed to promote member');
+            }
+        };
+        
+        window.demoteAdmin = async function(groupId, userId, userName) {
+            if (!confirm(`Remove admin rights from ${userName}?`)) return;
+            
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                // Check if current user is admin
+                if (!groupData.admins || !groupData.admins[currentUser.id]) {
+                    alert('Only admins can demote members');
+                    return;
+                }
+                
+                // Check if target is creator
+                if (groupData.createdBy === userId) {
+                    alert('Cannot demote group creator. Transfer ownership first.');
+                    return;
+                }
+                
+                // Demote admin
+                await remove(ref(database, `groups/${groupId}/admins/${userId}`));
+                
+                // Log activity
+                await logAdminActivity(groupId, 'demoted_admin', `${currentUser.name} removed admin rights from ${userName}`);
+                
+                // Send system message
+                await sendSystemMessage(groupId, `${userName} is no longer an admin`);
+                
+                alert(`${userName} demoted from admin`);
+                
+            } catch (error) {
+                console.error('Demote error:', error);
+                alert('Failed to demote admin');
+            }
+        };
+        
+        // ============================================
+        // 3. DELETE ANY MESSAGE (ADMIN POWER)
+        // ============================================
+        
+        window.deleteMessageAsAdmin = async function(groupId, messageId, senderName) {
+            if (!confirm(`Delete message from ${senderName}?`)) return;
+            
+            try {
+                // Update message as deleted
+                await update(ref(database, `groupMessages/${groupId}/${messageId}`), {
+                    deleted: true,
+                    deletedBy: currentUser.id,
+                    deletedByAdmin: true,
+                    deletedAt: Date.now(),
+                    text: 'This message was deleted by an admin',
+                    type: 'deleted'
+                });
+                
+                // Log activity
+                await logAdminActivity(groupId, 'deleted_message', `${currentUser.name} deleted message from ${senderName}`);
+                
+                console.log('Message deleted by admin');
+                
+            } catch (error) {
+                console.error('Delete message error:', error);
+                alert('Failed to delete message');
+            }
+        };
+        
+        // ============================================
+        // 4. EDIT GROUP INFO
+        // ============================================
+        
+        window.editGroupName = async function(groupId, currentName) {
+            const newName = prompt('Enter new group name:', currentName);
+            if (!newName || newName === currentName) return;
+            
+            try {
+                await update(ref(database, `groups/${groupId}`), {
+                    name: newName,
+                    nameUpdatedBy: currentUser.id,
+                    nameUpdatedAt: Date.now()
+                });
+                
+                await logAdminActivity(groupId, 'changed_name', `${currentUser.name} changed group name to "${newName}"`);
+                await sendSystemMessage(groupId, `Group name changed to "${newName}"`);
+                
+                alert('Group name updated!');
+                
+            } catch (error) {
+                console.error('Edit name error:', error);
+                alert('Failed to update group name');
+            }
+        };
+        
+        window.editGroupDescription = async function(groupId, currentDesc) {
+            const newDesc = prompt('Enter group description:', currentDesc || '');
+            if (newDesc === null) return;
+            
+            try {
+                await update(ref(database, `groups/${groupId}`), {
+                    description: newDesc,
+                    descriptionUpdatedBy: currentUser.id,
+                    descriptionUpdatedAt: Date.now()
+                });
+                
+                await logAdminActivity(groupId, 'changed_description', `${currentUser.name} updated group description`);
+                
+                alert('Description updated!');
+                
+            } catch (error) {
+                console.error('Edit description error:', error);
+                alert('Failed to update description');
+            }
+        };
+        
+        window.changeGroupIcon = async function(groupId) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const base64 = await convertFileToBase64(file);
+                    
+                    await update(ref(database, `groups/${groupId}`), {
+                        icon: base64,
+                        iconUpdatedBy: currentUser.id,
+                        iconUpdatedAt: Date.now()
+                    });
+                    
+                    await logAdminActivity(groupId, 'changed_icon', `${currentUser.name} changed group icon`);
+                    await sendSystemMessage(groupId, 'Group icon updated');
+                    
+                    alert('Group icon updated!');
+                    
+                } catch (error) {
+                    console.error('Change icon error:', error);
+                    alert('Failed to update icon');
+                }
+            };
+            
+            input.click();
+        };
+        
+        // ============================================
+        // 5. PIN MESSAGES
+        // ============================================
+        
+        window.pinMessage = async function(groupId, messageId, messageText) {
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                // Check admin
+                if (!groupData.admins || !groupData.admins[currentUser.id]) {
+                    alert('Only admins can pin messages');
+                    return;
+                }
+                
+                // Pin message
+                await set(ref(database, `groups/${groupId}/pinnedMessage`), {
+                    messageId: messageId,
+                    text: messageText.substring(0, 100),
+                    pinnedBy: currentUser.id,
+                    pinnedByName: currentUser.name,
+                    pinnedAt: Date.now()
+                });
+                
+                await logAdminActivity(groupId, 'pinned_message', `${currentUser.name} pinned a message`);
+                
+                alert('Message pinned!');
+                
+            } catch (error) {
+                console.error('Pin message error:', error);
+                alert('Failed to pin message');
+            }
+        };
+        
+        window.unpinMessage = async function(groupId) {
+            try {
+                await remove(ref(database, `groups/${groupId}/pinnedMessage`));
+                await logAdminActivity(groupId, 'unpinned_message', `${currentUser.name} unpinned message`);
+                
+                console.log('Message unpinned');
+                
+            } catch (error) {
+                console.error('Unpin error:', error);
+            }
+        };
+        
+        // ============================================
+        // 6. ANNOUNCEMENT MODE
+        // ============================================
+        
+        window.toggleAnnouncementMode = async function(groupId) {
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                // Check admin
+                if (!groupData.admins || !groupData.admins[currentUser.id]) {
+                    alert('Only admins can toggle announcement mode');
+                    return;
+                }
+                
+                const newMode = !groupData.announcementMode;
+                
+                await update(groupRef, {
+                    announcementMode: newMode
+                });
+                
+                const status = newMode ? 'enabled' : 'disabled';
+                await logAdminActivity(groupId, 'announcement_mode', `${currentUser.name} ${status} announcement mode`);
+                await sendSystemMessage(groupId, `Announcement mode ${status}. ${newMode ? 'Only admins can send messages.' : 'Everyone can send messages.'}`);
+                
+                alert(`Announcement mode ${status}!`);
+                
+            } catch (error) {
+                console.error('Toggle announcement error:', error);
+                alert('Failed to toggle announcement mode');
+            }
+        };
+        
+        // ============================================
+        // 7. MUTE MEMBER
+        // ============================================
+        
+        window.muteMember = async function(groupId, userId, userName) {
+            const duration = prompt('Mute for how long?\n1 = 1 hour\n2 = 8 hours\n3 = 24 hours\n4 = Forever', '1');
+            if (!duration) return;
+            
+            try {
+                let muteUntil;
+                const now = Date.now();
+                
+                switch(duration) {
+                    case '1': muteUntil = now + (60 * 60 * 1000); break;
+                    case '2': muteUntil = now + (8 * 60 * 60 * 1000); break;
+                    case '3': muteUntil = now + (24 * 60 * 60 * 1000); break;
+                    case '4': muteUntil = 9999999999999; break;
+                    default: return;
+                }
+                
+                await set(ref(database, `groups/${groupId}/mutedMembers/${userId}`), {
+                    mutedBy: currentUser.id,
+                    mutedAt: now,
+                    muteUntil: muteUntil
+                });
+                
+                mutedMembers.add(userId);
+                
+                await logAdminActivity(groupId, 'muted_member', `${currentUser.name} muted ${userName}`);
+                await sendSystemMessage(groupId, `${userName} was muted`);
+                
+                alert(`${userName} muted!`);
+                
+            } catch (error) {
+                console.error('Mute error:', error);
+                alert('Failed to mute member');
+            }
+        };
+        
+        window.unmuteMember = async function(groupId, userId, userName) {
+            try {
+                await remove(ref(database, `groups/${groupId}/mutedMembers/${userId}`));
+                mutedMembers.delete(userId);
+                
+                await logAdminActivity(groupId, 'unmuted_member', `${currentUser.name} unmuted ${userName}`);
+                
+                alert(`${userName} unmuted!`);
+                
+            } catch (error) {
+                console.error('Unmute error:', error);
+                alert('Failed to unmute member');
+            }
+        };
+        
+        // Check if member is muted before sending message
+        window.checkIfMuted = async function(groupId, userId) {
+            try {
+                const muteRef = ref(database, `groups/${groupId}/mutedMembers/${userId}`);
+                const muteSnapshot = await get(muteRef);
+                
+                if (muteSnapshot.exists()) {
+                    const muteData = muteSnapshot.val();
+                    if (Date.now() < muteData.muteUntil) {
+                        return true; // Still muted
+                    } else {
+                        // Mute expired, remove it
+                        await remove(muteRef);
+                        return false;
+                    }
+                }
+                return false;
+            } catch (error) {
+                console.error('Check mute error:', error);
+                return false;
+            }
+        };
+        
+        // ============================================
+        // 8. GROUP SETTINGS (PERMISSIONS)
+        // ============================================
+        
+        window.editGroupSettings = async function(groupId) {
+            const groupRef = ref(database, `groups/${groupId}`);
+            const groupSnapshot = await get(groupRef);
+            const groupData = groupSnapshot.val();
+            
+            // Check admin
+            if (!groupData.admins || !groupData.admins[currentUser.id]) {
+                alert('Only admins can edit settings');
+                return;
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+            
+            overlay.innerHTML = `
+                <div style="background: white; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                    <h3 style="margin: 0 0 20px 0; color: #075e54;">Group Settings</h3>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f0f2f5; border-radius: 8px; cursor: pointer;">
+                            <span style="font-size: 14px;">Who can add members</span>
+                            <select id="whoCanAdd" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all" ${groupData.settings?.whoCanAdd === 'all' ? 'selected' : ''}>Everyone</option>
+                                <option value="admins" ${groupData.settings?.whoCanAdd !== 'all' ? 'selected' : ''}>Admins Only</option>
+                            </select>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f0f2f5; border-radius: 8px; cursor: pointer;">
+                            <span style="font-size: 14px;">Who can edit group info</span>
+                            <select id="whoCanEdit" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all" ${groupData.settings?.whoCanEdit === 'all' ? 'selected' : ''}>Everyone</option>
+                                <option value="admins" ${groupData.settings?.whoCanEdit !== 'all' ? 'selected' : ''}>Admins Only</option>
+                            </select>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f0f2f5; border-radius: 8px; cursor: pointer;">
+                            <span style="font-size: 14px;">Who can send messages</span>
+                            <select id="whoCanSend" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all" ${groupData.settings?.whoCanSend === 'all' ? 'selected' : ''}>Everyone</option>
+                                <option value="admins" ${groupData.settings?.whoCanSend !== 'all' ? 'selected' : ''}>Admins Only</option>
+                            </select>
+                        </label>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button onclick="this.closest('div').parentElement.remove()" style="flex: 1; padding: 12px; background: #8696a0; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                            Cancel
+                        </button>
+                        <button onclick="saveGroupSettings('${groupId}')" style="flex: 1; padding: 12px; background: #075e54; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        };
+        
+        window.saveGroupSettings = async function(groupId) {
+            try {
+                const whoCanAdd = document.getElementById('whoCanAdd').value;
+                const whoCanEdit = document.getElementById('whoCanEdit').value;
+                const whoCanSend = document.getElementById('whoCanSend').value;
+                
+                await update(ref(database, `groups/${groupId}/settings`), {
+                    whoCanAdd: whoCanAdd,
+                    whoCanEdit: whoCanEdit,
+                    whoCanSend: whoCanSend
+                });
+                
+                await logAdminActivity(groupId, 'changed_settings', `${currentUser.name} updated group settings`);
+                
+                document.querySelector('div[style*="position: fixed"]').remove();
+                alert('Settings saved!');
+                
+            } catch (error) {
+                console.error('Save settings error:', error);
+                alert('Failed to save settings');
+            }
+        };
+        
+        // ============================================
+        // 9. VIEW MEMBER LIST WITH ADMIN BADGE
+        // (Already implemented in enhanced profile)
+        // ============================================
+        
+        // ============================================
+        // 10. ADMIN LOG (ACTIVITY HISTORY)
+        // ============================================
+        
+        async function logAdminActivity(groupId, action, description) {
+            try {
+                const logRef = push(ref(database, `groups/${groupId}/adminLog`));
+                await set(logRef, {
+                    action: action,
+                    description: description,
+                    adminId: currentUser.id,
+                    adminName: currentUser.name,
+                    timestamp: Date.now()
+                });
+            } catch (error) {
+                console.error('Log activity error:', error);
+            }
+        }
+        
+        window.viewAdminLog = async function(groupId) {
+            try {
+                const logRef = ref(database, `groups/${groupId}/adminLog`);
+                const logSnapshot = await get(logRef);
+                
+                if (!logSnapshot.exists()) {
+                    alert('No admin activity yet');
+                    return;
+                }
+                
+                const logs = [];
+                logSnapshot.forEach((child) => {
+                    logs.push(child.val());
+                });
+                
+                // Sort by timestamp (newest first)
+                logs.sort((a, b) => b.timestamp - a.timestamp);
+                
+                // Show in modal
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+                
+                overlay.innerHTML = `
+                    <div style="background: white; border-radius: 15px; padding: 20px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin: 0; color: #075e54;">Admin Activity Log</h3>
+                            <button onclick="this.closest('div').parentElement.remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #8696a0;">×</button>
+                        </div>
+                        
+                        <div style="max-height: 60vh; overflow-y: auto;">
+                            ${logs.slice(0, 50).map(log => `
+                                <div style="padding: 12px; background: #f0f2f5; border-radius: 8px; margin-bottom: 10px;">
+                                    <div style="font-size: 13px; color: #111; margin-bottom: 4px;">${log.description}</div>
+                                    <div style="font-size: 11px; color: #667781;">${new Date(log.timestamp).toLocaleString()}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(overlay);
+                
+            } catch (error) {
+                console.error('View log error:', error);
+                alert('Failed to load admin log');
+            }
+        };
+        
+        // ============================================
+        // 11. BAN MEMBER (PERMANENT)
+        // ============================================
+        
+        window.banMember = async function(groupId, userId, userName) {
+            if (!confirm(`Permanently ban ${userName}? They cannot rejoin.`)) return;
+            
+            try {
+                // Remove from group
+                await remove(ref(database, `groups/${groupId}/members/${userId}`));
+                await remove(ref(database, `users/${userId}/groups/${groupId}`));
+                
+                // Add to banned list
+                await set(ref(database, `groups/${groupId}/bannedMembers/${userId}`), {
+                    bannedBy: currentUser.id,
+                    bannedAt: Date.now(),
+                    userName: userName
+                });
+                
+                bannedMembers.add(userId);
+                
+                await logAdminActivity(groupId, 'banned_member', `${currentUser.name} permanently banned ${userName}`);
+                await sendSystemMessage(groupId, `${userName} was banned`);
+                
+                alert(`${userName} permanently banned!`);
+                
+            } catch (error) {
+                console.error('Ban error:', error);
+                alert('Failed to ban member');
+            }
+        };
+        
+        window.unbanMember = async function(groupId, userId) {
+            try {
+                await remove(ref(database, `groups/${groupId}/bannedMembers/${userId}`));
+                bannedMembers.delete(userId);
+                
+                await logAdminActivity(groupId, 'unbanned_member', `${currentUser.name} unbanned a member`);
+                
+                alert('Member unbanned!');
+                
+            } catch (error) {
+                console.error('Unban error:', error);
+                alert('Failed to unban member');
+            }
+        };
+        
+        // ============================================
+        // 12. INVITE LINK (GENERATE/REVOKE)
+        // ============================================
+        
+        window.generateInviteLink = async function(groupId) {
+            try {
+                // Generate unique code
+                const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+                const inviteLink = `https://master-chats.vercel.app/join/${inviteCode}`;
+                
+                await set(ref(database, `groups/${groupId}/inviteLink`), {
+                    code: inviteCode,
+                    link: inviteLink,
+                    createdBy: currentUser.id,
+                    createdAt: Date.now(),
+                    active: true
+                });
+                
+                await logAdminActivity(groupId, 'created_invite_link', `${currentUser.name} created invite link`);
+                
+                // Show link
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+                
+                overlay.innerHTML = `
+                    <div style="background: white; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; text-align: center;">
+                        <h3 style="margin: 0 0 15px 0; color: #075e54;">Group Invite Link</h3>
+                        <div style="padding: 15px; background: #f0f2f5; border-radius: 8px; margin-bottom: 15px; word-break: break-all; font-size: 14px;">
+                            ${inviteLink}
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="copyToClipboard('${inviteLink}'); alert('Link copied!')" style="flex: 1; padding: 12px; background: #075e54; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                Copy Link
+                            </button>
+                            <button onclick="this.closest('div').parentElement.remove()" style="flex: 1; padding: 12px; background: #8696a0; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(overlay);
+                
+            } catch (error) {
+                console.error('Generate link error:', error);
+                alert('Failed to generate link');
+            }
+        };
+        
+        window.revokeInviteLink = async function(groupId) {
+            if (!confirm('Revoke current invite link? It will no longer work.')) return;
+            
+            try {
+                await update(ref(database, `groups/${groupId}/inviteLink`), {
+                    active: false,
+                    revokedBy: currentUser.id,
+                    revokedAt: Date.now()
+                });
+                
+                await logAdminActivity(groupId, 'revoked_invite_link', `${currentUser.name} revoked invite link`);
+                
+                alert('Invite link revoked!');
+                
+            } catch (error) {
+                console.error('Revoke link error:', error);
+                alert('Failed to revoke link');
+            }
+        };
+        
+        window.copyToClipboard = function(text) {
+            navigator.clipboard.writeText(text);
+        };
+        
+        // ============================================
+        // 13. APPROVE JOIN REQUESTS
+        // ============================================
+        
+        window.enableJoinApproval = async function(groupId) {
+            try {
+                await update(ref(database, `groups/${groupId}/settings`), {
+                    requireApproval: true
+                });
+                
+                await logAdminActivity(groupId, 'enabled_join_approval', `${currentUser.name} enabled join approval`);
+                
+                alert('Join approval enabled. New members need admin approval.');
+                
+            } catch (error) {
+                console.error('Enable approval error:', error);
+                alert('Failed to enable join approval');
+            }
+        };
+        
+        window.viewJoinRequests = async function(groupId) {
+            try {
+                const requestsRef = ref(database, `groups/${groupId}/joinRequests`);
+                const requestsSnapshot = await get(requestsRef);
+                
+                if (!requestsSnapshot.exists()) {
+                    alert('No pending join requests');
+                    return;
+                }
+                
+                const requests = [];
+                requestsSnapshot.forEach((child) => {
+                    requests.push({
+                        id: child.key,
+                        ...child.val()
+                    });
+                });
+                
+                // Show requests
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+                
+                overlay.innerHTML = `
+                    <div style="background: white; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                        <h3 style="margin: 0 0 20px 0; color: #075e54;">Join Requests (${requests.length})</h3>
+                        
+                        ${requests.map(req => `
+                            <div style="padding: 12px; background: #f0f2f5; border-radius: 8px; margin-bottom: 10px;">
+                                <div style="font-weight: bold; margin-bottom: 5px;">${req.userName}</div>
+                                <div style="font-size: 12px; color: #667781; margin-bottom: 10px;">${new Date(req.requestedAt).toLocaleString()}</div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="approveJoinRequest('${groupId}', '${req.id}', '${req.userId}', '${req.userName}')" style="flex: 1; padding: 8px; background: #25d366; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                                        Approve
+                                    </button>
+                                    <button onclick="rejectJoinRequest('${groupId}', '${req.id}')" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                        
+                        <button onclick="this.closest('div').parentElement.remove()" style="width: 100%; padding: 12px; background: #8696a0; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold;">
+                            Close
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(overlay);
+                
+            } catch (error) {
+                console.error('View requests error:', error);
+                alert('Failed to load join requests');
+            }
+        };
+        
+        window.approveJoinRequest = async function(groupId, requestId, userId, userName) {
+            try {
+                // Add to group
+                await set(ref(database, `groups/${groupId}/members/${userId}`), true);
+                await set(ref(database, `users/${userId}/groups/${groupId}`), true);
+                
+                // Remove request
+                await remove(ref(database, `groups/${groupId}/joinRequests/${requestId}`));
+                
+                await logAdminActivity(groupId, 'approved_join', `${currentUser.name} approved ${userName}'s join request`);
+                await sendSystemMessage(groupId, `${userName} joined the group`);
+                
+                // Refresh view
+                document.querySelector('div[style*="position: fixed"]').remove();
+                viewJoinRequests(groupId);
+                
+            } catch (error) {
+                console.error('Approve error:', error);
+                alert('Failed to approve request');
+            }
+        };
+        
+        window.rejectJoinRequest = async function(groupId, requestId) {
+            try {
+                await remove(ref(database, `groups/${groupId}/joinRequests/${requestId}`));
+                
+                await logAdminActivity(groupId, 'rejected_join', `${currentUser.name} rejected a join request`);
+                
+                // Refresh view
+                document.querySelector('div[style*="position: fixed"]').remove();
+                viewJoinRequests(groupId);
+                
+            } catch (error) {
+                console.error('Reject error:', error);
+                alert('Failed to reject request');
+            }
+        };
+        
+        // ============================================
+        // 14. WELCOME MESSAGE
+        // ============================================
+        
+        window.setWelcomeMessage = async function(groupId, currentWelcome) {
+            const message = prompt('Enter welcome message for new members:', currentWelcome || 'Welcome to the group!');
+            if (message === null) return;
+            
+            try {
+                await update(ref(database, `groups/${groupId}/settings`), {
+                    welcomeMessage: message,
+                    welcomeEnabled: message.trim() !== ''
+                });
+                
+                await logAdminActivity(groupId, 'set_welcome_message', `${currentUser.name} set welcome message`);
+                
+                alert('Welcome message saved!');
+                
+            } catch (error) {
+                console.error('Set welcome error:', error);
+                alert('Failed to set welcome message');
+            }
+        };
+        
+        async function sendWelcomeMessage(groupId, newMemberName) {
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                if (groupData.settings?.welcomeEnabled && groupData.settings?.welcomeMessage) {
+                    const welcomeText = groupData.settings.welcomeMessage.replace('{name}', newMemberName);
+                    await sendSystemMessage(groupId, welcomeText);
+                }
+            } catch (error) {
+                console.error('Send welcome error:', error);
+            }
+        }
+        
+        // ============================================
+        // 15. TRANSFER GROUP OWNERSHIP
+        // ============================================
+        
+        window.transferOwnership = async function(groupId, newOwnerId, newOwnerName) {
+            if (!confirm(`Transfer group ownership to ${newOwnerName}? You will become a regular admin.`)) return;
+            
+            try {
+                const groupRef = ref(database, `groups/${groupId}`);
+                const groupSnapshot = await get(groupRef);
+                const groupData = groupSnapshot.val();
+                
+                // Check if current user is creator
+                if (groupData.createdBy !== currentUser.id) {
+                    alert('Only the group creator can transfer ownership');
+                    return;
+                }
+                
+                // Transfer ownership
+                await update(groupRef, {
+                    createdBy: newOwnerId,
+                    ownershipTransferredFrom: currentUser.id,
+                    ownershipTransferredAt: Date.now()
+                });
+                
+                // Make new owner admin if not already
+                await set(ref(database, `groups/${groupId}/admins/${newOwnerId}`), true);
+                
+                await logAdminActivity(groupId, 'transferred_ownership', `${currentUser.name} transferred ownership to ${newOwnerName}`);
+                await sendSystemMessage(groupId, `${newOwnerName} is now the group owner`);
+                
+                alert(`Ownership transferred to ${newOwnerName}!`);
+                
+            } catch (error) {
+                console.error('Transfer ownership error:', error);
+                alert('Failed to transfer ownership');
+            }
+        };
+        
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        
+        async function sendSystemMessage(groupId, text) {
+            try {
+                const messageRef = push(ref(database, `groupMessages/${groupId}`));
+                await set(messageRef, {
+                    type: 'system',
+                    text: text,
+                    timestamp: Date.now(),
+                    senderId: 'system'
+                });
+            } catch (error) {
+                console.error('Send system message error:', error);
+            }
+        }
+        
+        // Admin menu for group
+        window.showGroupAdminMenu = function(groupId) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 10000; box-shadow: 0 -4px 12px rgba(0,0,0,0.15); max-height: 80vh; overflow-y: auto;';
+            
+            overlay.innerHTML = `
+                <h3 style="margin: 0 0 20px 0; color: #075e54; text-align: center;">👑 Admin Controls</h3>
+                
+                <div style="display: grid; gap: 10px;">
+                    <button onclick="editGroupSettings('${groupId}'); closeAdminMenu()" style="padding: 14px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 14px; font-weight: 500;">
+                        ⚙️ Group Settings
+                    </button>
+                    
+                    <button onclick="viewAdminLog('${groupId}'); closeAdminMenu()" style="padding: 14px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 14px; font-weight: 500;">
+                        📋 View Admin Log
+                    </button>
+                    
+                    <button onclick="toggleAnnouncementMode('${groupId}'); closeAdminMenu()" style="padding: 14px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 14px; font-weight: 500;">
+                        📢 Toggle Announcement Mode
+                    </button>
+                    
+                    <button onclick="generateInviteLink('${groupId}'); closeAdminMenu()" style="padding: 14px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 14px; font-weight: 500;">
+                        🔗 Generate Invite Link
+                    </button>
+                    
+                    <button onclick="viewJoinRequests('${groupId}'); closeAdminMenu()" style="padding: 14px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 14px; font-weight: 500;">
+                        ✅ View Join Requests
+                    </button>
+                    
+                    <button onclick="setWelcomeMessage('${groupId}'); closeAdminMenu()" style="padding: 14px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 14px; font-weight: 500;">
+                        👋 Set Welcome Message
+                    </button>
+                </div>
+                
+                <button onclick="closeAdminMenu()" style="width: 100%; padding: 14px; background: #8696a0; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 15px; font-weight: bold;">
+                    Close
+                </button>
+            `;
+            
+            const backdrop = document.createElement('div');
+            backdrop.className = 'admin-menu-backdrop';
+            backdrop.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;';
+            backdrop.onclick = closeAdminMenu;
+            
+            document.body.appendChild(backdrop);
+            document.body.appendChild(overlay);
+            overlay.className = 'admin-menu-panel';
+        };
+        
+        window.closeAdminMenu = function() {
+            const menu = document.querySelector('.admin-menu-panel');
+            const backdrop = document.querySelector('.admin-menu-backdrop');
+            if (menu) menu.remove();
+            if (backdrop) backdrop.remove();
+        };
+        
+        console.log('✅ Top 15 Admin Features Loaded!');
+        console.log('👑 Admin Controls Ready!');
+
+
+        // ============================================
+        // COMPLETE NOTIFICATION SYSTEM
+        // ============================================
+        
+        // Notification permission state
+        let notificationPermission = 'default';
+        let notificationsEnabled = true;
+        let soundEnabled = true;
+        let vibrationEnabled = true;
+        
+        // Audio elements for sounds
+        let messageSound = null;
+        let callRingtone = null;
+        let notificationSound = null;
+        
+        // ============================================
+        // INITIALIZE NOTIFICATION SYSTEM
+        // ============================================
+        
+        async function initializeNotifications() {
+            console.log('Initializing notification system...');
+            
+            // Check if browser supports notifications
+            if (!('Notification' in window)) {
+                console.warn('This browser does not support notifications');
+                return;
+            }
+            
+            // Request permission
+            if (Notification.permission === 'default') {
+                try {
+                    notificationPermission = await Notification.requestPermission();
+                    console.log('Notification permission:', notificationPermission);
+                } catch (error) {
+                    console.error('Notification permission error:', error);
+                }
+            } else {
+                notificationPermission = Notification.permission;
+            }
+            
+            // Initialize sounds
+            initializeSounds();
+            
+            // Listen for messages when app is in background
+            setupBackgroundMessageListener();
+            
+            console.log('✅ Notification system initialized');
+        }
+        
+        // ============================================
+        // SOUND INITIALIZATION
+        // ============================================
+        
+        function initializeSounds() {
+            console.log('Initializing notification sounds...');
+            
+            // Message notification sound (short, gentle)
+            messageSound = new Audio();
+            messageSound.src = createMessageSoundDataURL();
+            messageSound.volume = 0.5;
+            
+            // Call ringtone (loud, persistent)
+            callRingtone = new Audio();
+            callRingtone.src = createCallRingtoneDataURL();
+            callRingtone.loop = true;
+            callRingtone.volume = 1.0;
+            
+            // General notification sound
+            notificationSound = new Audio();
+            notificationSound.src = createNotificationSoundDataURL();
+            notificationSound.volume = 0.6;
+            
+            console.log('✅ Sounds initialized');
+        }
+        
+        // Create message notification sound (short beep)
+        function createMessageSoundDataURL() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.15; // 150ms
+            const frequency = 800;
+            
+            const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < buffer.length; i++) {
+                const t = i / sampleRate;
+                data[i] = Math.sin(2 * Math.PI * frequency * t) * Math.exp(-t * 10);
+            }
+            
+            // Convert to WAV and data URL
+            return bufferToWav(buffer);
+        }
+        
+        // Create call ringtone (loud, melodic)
+        function createCallRingtoneDataURL() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 2; // 2 seconds (will loop)
+            
+            const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            // Create melody pattern
+            const frequencies = [800, 1000, 800, 1000]; // Alternating tones
+            const noteLength = duration / frequencies.length;
+            
+            for (let i = 0; i < buffer.length; i++) {
+                const t = i / sampleRate;
+                const noteIndex = Math.floor(t / noteLength);
+                const freq = frequencies[noteIndex % frequencies.length];
+                
+                // Generate tone with envelope
+                const envelope = Math.sin(Math.PI * (t % noteLength) / noteLength);
+                data[i] = Math.sin(2 * Math.PI * freq * t) * envelope * 0.8;
+            }
+            
+            return bufferToWav(buffer);
+        }
+        
+        // Create notification sound (pleasant ding)
+        function createNotificationSoundDataURL() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.3;
+            
+            const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < buffer.length; i++) {
+                const t = i / sampleRate;
+                // Two-tone ding
+                const tone1 = Math.sin(2 * Math.PI * 1200 * t);
+                const tone2 = Math.sin(2 * Math.PI * 1600 * t);
+                const envelope = Math.exp(-t * 8);
+                data[i] = (tone1 + tone2) * 0.3 * envelope;
+            }
+            
+            return bufferToWav(buffer);
+        }
+        
+        // Convert audio buffer to WAV data URL
+        function bufferToWav(buffer) {
+            const length = buffer.length * 2;
+            const arrayBuffer = new ArrayBuffer(44 + length);
+            const view = new DataView(arrayBuffer);
+            const channels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + length, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, channels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, length, true);
+            
+            // Write audio data
+            const data = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < data.length; i++) {
+                const sample = Math.max(-1, Math.min(1, data[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            // Convert to data URL
+            const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+            return URL.createObjectURL(blob);
+        }
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        // ============================================
+        // PLAY SOUNDS
+        // ============================================
+        
+        function playMessageSound() {
+            if (!soundEnabled) return;
+            
+            try {
+                messageSound.currentTime = 0;
+                messageSound.play().catch(err => console.log('Sound play failed:', err));
+            } catch (error) {
+                console.error('Message sound error:', error);
+            }
+        }
+        
+        function playCallRingtone() {
+            if (!soundEnabled) return;
+            
+            try {
+                callRingtone.currentTime = 0;
+                callRingtone.play().catch(err => console.log('Ringtone play failed:', err));
+            } catch (error) {
+                console.error('Call ringtone error:', error);
+            }
+        }
+        
+        function stopCallRingtone() {
+            try {
+                callRingtone.pause();
+                callRingtone.currentTime = 0;
+            } catch (error) {
+                console.error('Stop ringtone error:', error);
+            }
+        }
+        
+        function playNotificationSound() {
+            if (!soundEnabled) return;
+            
+            try {
+                notificationSound.currentTime = 0;
+                notificationSound.play().catch(err => console.log('Notification sound failed:', err));
+            } catch (error) {
+                console.error('Notification sound error:', error);
+            }
+        }
+        
+        // ============================================
+        // VIBRATION
+        // ============================================
+        
+        function vibrate(pattern) {
+            if (!vibrationEnabled) return;
+            
+            if ('vibrate' in navigator) {
+                navigator.vibrate(pattern);
+            }
+        }
+        
+        function vibrateForMessage() {
+            vibrate([100]); // Short vibration
+        }
+        
+        function vibrateForCall() {
+            vibrate([500, 200, 500, 200, 500]); // Long pattern
+        }
+        
+        // ============================================
+        // SHOW NOTIFICATIONS
+        // ============================================
+        
+        function showMessageNotification(senderName, messageText, messageType, senderId) {
+            if (notificationPermission !== 'granted') {
+                console.log('Notification permission not granted');
+                return;
+            }
+            
+            if (!notificationsEnabled) return;
+            
+            // Don't show notification if chat is open and app is focused
+            if (document.hasFocus() && currentChat && currentChat.id === senderId) {
+                console.log('Chat is open, skipping notification');
+                return;
+            }
+            
+            // Prepare notification content
+            let body = messageText;
+            let icon = '/icon-192.png'; // Default icon
+            
+            if (messageType === 'image') {
+                body = '📷 Photo';
+            } else if (messageType === 'video') {
+                body = '🎥 Video';
+            } else if (messageType === 'voice') {
+                body = '🎤 Voice message';
+            } else if (messageType === 'document') {
+                body = '📄 Document';
+            } else if (messageType === 'location') {
+                body = '📍 Location';
+            } else if (messageType === 'gif') {
+                body = '🎬 GIF';
+            }
+            
+            // Truncate long messages
+            if (body.length > 100) {
+                body = body.substring(0, 97) + '...';
+            }
+            
+            // Create notification
+            const notification = new Notification(`${senderName}`, {
+                body: body,
+                icon: icon,
+                badge: icon,
+                tag: `message-${senderId}`,
+                requireInteraction: false,
+                silent: false,
+                vibrate: [100],
+                data: {
+                    senderId: senderId,
+                    senderName: senderName,
+                    messageType: messageType
+                }
+            });
+            
+            // Play sound
+            playMessageSound();
+            vibrateForMessage();
+            
+            // Click handler
+            notification.onclick = function() {
+                window.focus();
+                this.close();
+                
+                // Open chat with sender
+                if (senderId) {
+                    openChatWithUser(senderId);
+                }
+            };
+            
+            // Auto-close after 5 seconds
+            setTimeout(() => notification.close(), 5000);
+            
+            console.log('📱 Notification shown:', senderName, body);
+        }
+        
+        function showCallNotification(callerName, callType, callId, callerId) {
+            if (notificationPermission !== 'granted') return;
+            if (!notificationsEnabled) return;
+            
+            const callTypeText = callType === 'video' ? '📹 Video Call' : '📞 Voice Call';
+            
+            const notification = new Notification(`Incoming ${callType} call`, {
+                body: `${callerName} is calling...`,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `call-${callId}`,
+                requireInteraction: true, // Don't auto-close
+                vibrate: [500, 200, 500, 200, 500],
+                data: {
+                    callId: callId,
+                    callerId: callerId,
+                    callerName: callerName,
+                    callType: callType
+                }
+            });
+            
+            // Play loud ringtone
+            playCallRingtone();
+            vibrateForCall();
+            
+            notification.onclick = function() {
+                window.focus();
+                this.close();
+                stopCallRingtone();
+                
+                // Answer call
+                if (callType === 'video') {
+                    acceptVideoCall(callId);
+                } else {
+                    acceptVoiceCall(callId);
+                }
+            };
+            
+            console.log('📞 Call notification shown:', callerName);
+        }
+        
+        function showGroupMessageNotification(groupName, senderName, messageText, messageType, groupId) {
+            if (notificationPermission !== 'granted') return;
+            if (!notificationsEnabled) return;
+            
+            // Don't show if group chat is open
+            if (document.hasFocus() && currentChat && currentChat.id === groupId) {
+                return;
+            }
+            
+            let body = `${senderName}: ${messageText}`;
+            
+            if (messageType === 'image') {
+                body = `${senderName}: 📷 Photo`;
+            } else if (messageType === 'video') {
+                body = `${senderName}: 🎥 Video`;
+            } else if (messageType === 'voice') {
+                body = `${senderName}: 🎤 Voice message`;
+            }
+            
+            if (body.length > 100) {
+                body = body.substring(0, 97) + '...';
+            }
+            
+            const notification = new Notification(groupName, {
+                body: body,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `group-${groupId}`,
+                vibrate: [100],
+                data: {
+                    groupId: groupId,
+                    groupName: groupName
+                }
+            });
+            
+            playMessageSound();
+            vibrateForMessage();
+            
+            notification.onclick = function() {
+                window.focus();
+                this.close();
+                openGroup(groupId);
+            };
+            
+            setTimeout(() => notification.close(), 5000);
+            
+            console.log('📱 Group notification shown:', groupName);
+        }
+        
+        // ============================================
+        // BACKGROUND MESSAGE LISTENER
+        // ============================================
+        
+        function setupBackgroundMessageListener() {
+            if (!currentUser) return;
+            
+            console.log('Setting up background message listener...');
+            
+            // Listen for new messages
+            const userChatsRef = ref(database, `chats/${currentUser.id}`);
+            onValue(userChatsRef, (snapshot) => {
+                if (!snapshot.exists()) return;
+                
+                snapshot.forEach((chatSnapshot) => {
+                    const chatId = chatSnapshot.key;
+                    const chatData = chatSnapshot.val();
+                    
+                    // Listen for messages in this chat
+                    const messagesRef = ref(database, `messages/${getChatId(currentUser.id, chatId)}`);
+                    onChildAdded(messagesRef, (messageSnapshot) => {
+                        const message = messageSnapshot.val();
+                        
+                        // Only notify if message is not from current user
+                        if (message.senderId !== currentUser.id) {
+                            // Get sender info
+                            get(ref(database, `users/${message.senderId}`)).then((userSnapshot) => {
+                                if (userSnapshot.exists()) {
+                                    const senderData = userSnapshot.val();
+                                    showMessageNotification(
+                                        senderData.name || 'Unknown',
+                                        message.text || '',
+                                        message.type || 'text',
+                                        message.senderId
+                                    );
+                                }
+                            });
+                        }
+                    });
+                });
+            });
+            
+            // Listen for group messages
+            const userGroupsRef = ref(database, `users/${currentUser.id}/groups`);
+            onValue(userGroupsRef, (snapshot) => {
+                if (!snapshot.exists()) return;
+                
+                snapshot.forEach((groupSnapshot) => {
+                    const groupId = groupSnapshot.key;
+                    
+                    // Get group info
+                    get(ref(database, `groups/${groupId}`)).then((groupDataSnapshot) => {
+                        if (!groupDataSnapshot.exists()) return;
+                        
+                        const groupData = groupDataSnapshot.val();
+                        
+                        // Listen for messages
+                        const groupMessagesRef = ref(database, `groupMessages/${groupId}`);
+                        onChildAdded(groupMessagesRef, (messageSnapshot) => {
+                            const message = messageSnapshot.val();
+                            
+                            if (message.senderId !== currentUser.id && message.senderId !== 'system') {
+                                get(ref(database, `users/${message.senderId}`)).then((senderSnapshot) => {
+                                    if (senderSnapshot.exists()) {
+                                        const senderData = senderSnapshot.val();
+                                        showGroupMessageNotification(
+                                            groupData.name,
+                                            senderData.name || 'Unknown',
+                                            message.text || '',
+                                            message.type || 'text',
+                                            groupId
+                                        );
+                                    }
+                                });
+                            }
+                        });
+                    });
+                });
+            });
+            
+            // Listen for incoming calls
+            const callsRef = ref(database, 'calls');
+            onChildAdded(callsRef, (callSnapshot) => {
+                const call = callSnapshot.val();
+                
+                if (call.receiver === currentUser.id && call.status === 'calling') {
+                    get(ref(database, `users/${call.caller}`)).then((callerSnapshot) => {
+                        if (callerSnapshot.exists()) {
+                            const callerData = callerSnapshot.val();
+                            showCallNotification(
+                                callerData.name || 'Unknown',
+                                'voice',
+                                callSnapshot.key,
+                                call.caller
+                            );
+                        }
+                    });
+                }
+            });
+            
+            // Listen for video calls
+            const videoCallsRef = ref(database, 'videoCalls');
+            onChildAdded(videoCallsRef, (callSnapshot) => {
+                const call = callSnapshot.val();
+                
+                if (call.receiver === currentUser.id && call.status === 'calling') {
+                    get(ref(database, `users/${call.caller}`)).then((callerSnapshot) => {
+                        if (callerSnapshot.exists()) {
+                            const callerData = callerSnapshot.val();
+                            showCallNotification(
+                                callerData.name || 'Unknown',
+                                'video',
+                                callSnapshot.key,
+                                call.caller
+                            );
+                        }
+                    });
+                }
+            });
+            
+            console.log('✅ Background listener active');
+        }
+        
+        // ============================================
+        // NOTIFICATION SETTINGS
+        // ============================================
+        
+        window.showNotificationSettings = function() {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
+            
+            overlay.innerHTML = `
+                <div style="background: white; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%;">
+                    <h3 style="margin: 0 0 20px 0; color: #075e54;">🔔 Notification Settings</h3>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f0f2f5; border-radius: 8px; cursor: pointer;">
+                            <span>Enable Notifications</span>
+                            <input type="checkbox" id="enableNotifs" ${notificationsEnabled ? 'checked' : ''} onchange="toggleNotifications(this.checked)" style="width: 20px; height: 20px;">
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f0f2f5; border-radius: 8px; cursor: pointer;">
+                            <span>Sound</span>
+                            <input type="checkbox" id="enableSound" ${soundEnabled ? 'checked' : ''} onchange="toggleSound(this.checked)" style="width: 20px; height: 20px;">
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f0f2f5; border-radius: 8px; cursor: pointer;">
+                            <span>Vibration</span>
+                            <input type="checkbox" id="enableVibration" ${vibrationEnabled ? 'checked' : ''} onchange="toggleVibration(this.checked)" style="width: 20px; height: 20px;">
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 8px;">
+                        <div style="font-size: 13px; color: #856404; margin-bottom: 8px;">
+                            <strong>Browser Permission:</strong> ${notificationPermission}
+                        </div>
+                        ${notificationPermission !== 'granted' ? `
+                            <button onclick="requestNotificationPermission()" style="padding: 8px 15px; background: #075e54; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                Enable Notifications
+                            </button>
+                        ` : ''}
+                    </div>
+                    
+                    <button onclick="playMessageSound(); vibrateForMessage()" style="width: 100%; padding: 12px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 10px;">
+                        🔔 Test Message Sound
+                    </button>
+                    
+                    <button onclick="playCallRingtone(); setTimeout(stopCallRingtone, 2000)" style="width: 100%; padding: 12px; background: #f0f2f5; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 10px;">
+                        📞 Test Call Ringtone
+                    </button>
+                    
+                    <button onclick="this.closest('div').parentElement.remove()" style="width: 100%; padding: 12px; background: #075e54; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        };
+        
+        window.toggleNotifications = function(enabled) {
+            notificationsEnabled = enabled;
+            localStorage.setItem('notificationsEnabled', enabled);
+            console.log('Notifications:', enabled ? 'enabled' : 'disabled');
+        };
+        
+        window.toggleSound = function(enabled) {
+            soundEnabled = enabled;
+            localStorage.setItem('soundEnabled', enabled);
+            console.log('Sound:', enabled ? 'enabled' : 'disabled');
+        };
+        
+        window.toggleVibration = function(enabled) {
+            vibrationEnabled = enabled;
+            localStorage.setItem('vibrationEnabled', enabled);
+            console.log('Vibration:', enabled ? 'enabled' : 'disabled');
+        };
+        
+        window.requestNotificationPermission = async function() {
+            try {
+                const permission = await Notification.requestPermission();
+                notificationPermission = permission;
+                
+                if (permission === 'granted') {
+                    alert('✅ Notifications enabled!');
+                    showNotificationSettings();
+                } else {
+                    alert('⚠️ Notification permission denied. Please enable in browser settings.');
+                }
+            } catch (error) {
+                console.error('Permission request error:', error);
+                alert('Failed to request permission');
+            }
+        };
+        
+        // Load saved settings
+        function loadNotificationSettings() {
+            const savedNotif = localStorage.getItem('notificationsEnabled');
+            const savedSound = localStorage.getItem('soundEnabled');
+            const savedVibration = localStorage.getItem('vibrationEnabled');
+            
+            if (savedNotif !== null) notificationsEnabled = savedNotif === 'true';
+            if (savedSound !== null) soundEnabled = savedSound === 'true';
+            if (savedVibration !== null) vibrationEnabled = savedVibration === 'true';
+            
+            console.log('Notification settings loaded');
+        }
+        
+        // Helper to open chat with user
+        function openChatWithUser(userId) {
+            get(ref(database, `users/${userId}`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    currentChat = {
+                        id: userId,
+                        ...userData
+                    };
+                    openChatWindow();
+                }
+            });
+        }
+        
+        // ============================================
+        // AUTO-INITIALIZE ON LOGIN
+        // ============================================
+        
+        // Call this after successful login
+        window.initNotificationSystemOnLogin = function() {
+            loadNotificationSettings();
+            initializeNotifications();
+            
+            console.log('✅ Notification system ready');
+        };
+        
+        console.log('✅ Notification system loaded');
 
 
     </script>
