@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://master-chats.vercel.app/sitemap.xml
